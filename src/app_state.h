@@ -10,17 +10,14 @@ typedef struct {
 } Vec2d;
 
 typedef struct {
-    int h;
-    int w;
-
-    SDL_FRect rect;
-    Vec2d momentum;
+    Vec2d dims;
+    SDL_Rect rect;
+    Vec2d delta;
 
     bool hit_wall;
-
-    Uint8 *sound_buffer;
-    Uint32 sound_len;
 } AppState;
+
+void init_app_state(AppState *state, int h, int w, int size);
 
 void tick(AppState *state);
 
