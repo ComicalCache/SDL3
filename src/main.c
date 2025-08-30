@@ -15,17 +15,15 @@ Uint32 sound_len;
 
 SDL_Texture *texture = NULL;
 
-SDL_AppResult SDL_AppInit(void **appstate, const int argc, char *argv[]) {
-    AppState **state = (AppState **) appstate;
-    *state = (AppState *) malloc(sizeof(AppState));
+SDL_AppResult SDL_AppInit(void **appstate, const int /* argc */, char * /* argv */[])
+{
+    AppState **state = (AppState **)appstate;
+    *state = (AppState *)malloc(sizeof(AppState));
 
-    SDL_SetAppMetadata("SDL3 Test", "1.0.0", "cc.cmath.sdl3_test");
+    SDL_SetAppMetadata("Vine Boom Sound Effect Machine", "1.0.0", "cc.cmath.vine_boom");
 
-    for (int i = 1; i < argc; i += 1) {
-        SDL_Log("Received command line argument: '%s'", argv[i]);
-    }
-
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS))
+    {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
@@ -33,41 +31,48 @@ SDL_AppResult SDL_AppInit(void **appstate, const int argc, char *argv[]) {
     const int width = 641;
     const int height = 487;
 
-    if (!SDL_CreateWindowAndRenderer("SDL3 Test", width, height, 0, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("Vine Boom Sound Effect Machine", width, height, 0, &window, &renderer))
+    {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    if (!SDL_SetWindowResizable(window, true)) {
+    if (!SDL_SetWindowResizable(window, true))
+    {
         SDL_Log("Couldn't set the window to resizable: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
     SDL_AudioSpec audio_spec;
-    if (!SDL_LoadWAV("/Users/user/Downloads/effect.wav", &audio_spec, &sound_buffer, &sound_len)) {
+    if (!SDL_LoadWAV("media/effect.wav", &audio_spec, &sound_buffer, &sound_len))
+    {
         SDL_Log("Couldn't load WAV: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
     audio = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, NULL, NULL);
-    if (!audio) {
+    if (!audio)
+    {
         SDL_Log("Couldn't open audio device: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    SDL_Surface *surface = IMG_Load("/Users/user/Downloads/dvd.png");
-    if (!surface) {
+    SDL_Surface *surface = IMG_Load("media/dvd.png");
+    if (!surface)
+    {
         SDL_Log("Couldn't load png: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
     SDL_Surface *old_surface = surface;
     surface = SDL_ScaleSurface(surface, surface->w / 3, surface->h / 3, SDL_SCALEMODE_LINEAR);
-    if (!surface) {
+    if (!surface)
+    {
         SDL_Log("Couldn't scale surface: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
     SDL_DestroySurface(old_surface);
     texture = SDL_CreateTextureFromSurface(renderer, surface);
-    if (!texture) {
+    if (!texture)
+    {
         SDL_Log("Couldn't create texture: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
@@ -80,21 +85,28 @@ SDL_AppResult SDL_AppInit(void **appstate, const int argc, char *argv[]) {
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
+SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
+{
     AppState *state = appstate;
-    if (event->type == SDL_EVENT_QUIT) {
+    if (event->type == SDL_EVENT_QUIT)
+    {
         return SDL_APP_SUCCESS;
     }
 
-    if (event->type == SDL_EVENT_KEY_DOWN) {
-        switch (event->key.key) {
-            case SDLK_ESCAPE:
-            case SDLK_Q: return SDL_APP_SUCCESS;
-            default: return SDL_APP_CONTINUE;
+    if (event->type == SDL_EVENT_KEY_DOWN)
+    {
+        switch (event->key.key)
+        {
+        case SDLK_ESCAPE:
+        case SDLK_Q:
+            return SDL_APP_SUCCESS;
+        default:
+            return SDL_APP_CONTINUE;
         }
     }
 
-    if (event->type == SDL_EVENT_WINDOW_RESIZED) {
+    if (event->type == SDL_EVENT_WINDOW_RESIZED)
+    {
         state->dims.x = event->window.data1;
         state->dims.y = event->window.data2;
 
@@ -104,14 +116,16 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult SDL_AppIterate(void *appstate) {
+SDL_AppResult SDL_AppIterate(void *appstate)
+{
     AppState *state = appstate;
 
     // Background
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
 
-    if (SDL_GetTicks() % 25 != 0) {
+    if (SDL_GetTicks() % 25 != 0)
+    {
         SDL_Delay(25 - SDL_GetTicks() % 25);
     }
 
@@ -119,15 +133,15 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     tick(state);
 
     // Play sound
-    if (state->hit_wall) {
+    if (state->hit_wall)
+    {
         SDL_ClearAudioStream(audio);
-        SDL_PutAudioStreamData(audio, sound_buffer, (int) sound_len);
+        SDL_PutAudioStreamData(audio, sound_buffer, (int)sound_len);
     }
 
     // DVD logo
     const SDL_FRect rect = {
-        .h = (float) state->rect.h, .w = (float) state->rect.w, .x = (float) state->rect.x, .y = (float) state->rect.y
-    };
+        .h = (float)state->rect.h, .w = (float)state->rect.w, .x = (float)state->rect.x, .y = (float)state->rect.y};
     SDL_RenderTexture(renderer, texture, NULL, &rect);
 
     // Render all
@@ -136,34 +150,36 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     return SDL_APP_CONTINUE;
 }
 
-void SDL_AppQuit(void *appstate, const SDL_AppResult result) {
+void SDL_AppQuit(void *appstate, const SDL_AppResult result)
+{
     AppState *state = appstate;
 
-    if (texture) {
+    if (texture)
+    {
         SDL_DestroyTexture(texture);
     }
 
-    if (audio) {
+    if (audio)
+    {
         SDL_DestroyAudioStream(audio);
     }
 
-    if (sound_buffer) {
+    if (sound_buffer)
+    {
         SDL_free(sound_buffer);
     }
 
-    if (state) {
+    if (state)
+    {
         free(state);
     }
 
-    switch (result) {
-        case SDL_APP_SUCCESS:
-            SDL_Log("App quit with success");
-            break;
-        case SDL_APP_FAILURE:
-            SDL_Log("App quit with failure");
-            break;
-        default:
-            SDL_Log("App quit");
-            break;
+    switch (result)
+    {
+    case SDL_APP_FAILURE:
+        SDL_Log("App quit with failure");
+        break;
+    default:
+        break;
     }
 }
