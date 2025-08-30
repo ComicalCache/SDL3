@@ -17,7 +17,7 @@ typedef struct {
     bool hit_wall;
 } AppState;
 
-void init_app_state(AppState *state, int h, int w, int size);
+void init_app_state(AppState *state, int h, int w, int size_w, int size_h);
 
 void tick(AppState *state);
 

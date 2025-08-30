@@ -32,8 +32,6 @@ SDL_AppResult SDL_AppInit(void **appstate, const int argc, char *argv[]) {
 
     const int width = 641;
     const int height = 487;
-    const int rect_width = 76;
-    init_app_state(*state, height, width, rect_width);
 
     if (!SDL_CreateWindowAndRenderer("SDL3 Test", width, height, 0, &window, &renderer)) {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
@@ -62,7 +60,7 @@ SDL_AppResult SDL_AppInit(void **appstate, const int argc, char *argv[]) {
         return SDL_APP_FAILURE;
     }
     SDL_Surface *old_surface = surface;
-    surface = SDL_ScaleSurface(surface, rect_width, rect_width, SDL_SCALEMODE_LINEAR);
+    surface = SDL_ScaleSurface(surface, surface->w / 3, surface->h / 3, SDL_SCALEMODE_LINEAR);
     if (!surface) {
         SDL_Log("Couldn't scale surface: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -74,6 +72,8 @@ SDL_AppResult SDL_AppInit(void **appstate, const int argc, char *argv[]) {
         return SDL_APP_FAILURE;
     }
     SDL_DestroySurface(surface);
+
+    init_app_state(*state, height, width, texture->w, texture->h);
 
     SDL_ResumeAudioStreamDevice(audio);
 
