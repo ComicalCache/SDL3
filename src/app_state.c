@@ -1,24 +1,21 @@
 #include "app_state.h"
 
-void init_app_state(AppState *state, const int h, const int w, const float size_w, const float size_h,
-                    const Uint64 prev_counter, const Uint64 frequency) {
+void AS_init(AppState *state, const Vec2d dims, const Vec2d rect_dims, const Uint64 prev_counter) {
     state->prev_counter = prev_counter;
-    state->frequency = frequency;
     state->hit_wall = false;
 
-    state->dims.x = w;
-    state->dims.y = h;
+    state->dims = dims;
 
     state->delta.x = 200;
     state->delta.y = 200;
 
-    state->rect.w = size_w;
-    state->rect.h = size_h;
-    state->rect.x = (float)w / 2.f + size_w / 2.f;
-    state->rect.y = (float)h / 2.f + size_h / 2.f;
+    state->rect.w = (float)rect_dims.x;
+    state->rect.h = (float)rect_dims.y;
+    state->rect.x = (float)dims.x / 2.f + state->rect.w / 2.f;
+    state->rect.y = (float)dims.y / 2.f + state->rect.h / 2.f;
 }
 
-void tick(AppState *state, const float delta) {
+void AS_tick(AppState *state, const float delta) {
     state->hit_wall = false;
 
     float new_x = state->rect.x + (float)state->delta.x * delta;
