@@ -1,6 +1,6 @@
-#include "app_state.h"
+#include "state.h"
 
-void AS_init(AppState *state, const Vec2d dims, const Vec2d rect_dims, const Uint64 prev_counter) {
+void AS_init(State *state, const Vec2d dims, const Vec2d rect_dims, const Uint64 prev_counter) {
     state->prev_counter = prev_counter;
     state->hit_wall = false;
 
@@ -15,7 +15,7 @@ void AS_init(AppState *state, const Vec2d dims, const Vec2d rect_dims, const Uin
     state->rect.y = (float)dims.y / 2.f + state->rect.h / 2.f;
 }
 
-void AS_tick(AppState *state, const float delta) {
+void AS_tick(State *state, const float delta) {
     state->hit_wall = false;
 
     float new_x = state->rect.x + (float)state->delta.x * delta;

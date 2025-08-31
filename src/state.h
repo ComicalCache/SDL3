@@ -16,10 +16,10 @@ typedef struct {
     Vec2d delta;
 
     bool hit_wall;
-} AppState;
+} State;
 
-void AS_init(AppState *state, Vec2d dims, Vec2d rect_dims, Uint64 prev_counter);
+void AS_init(State *state, Vec2d dims, Vec2d rect_dims, Uint64 prev_counter);
 
-void AS_tick(AppState *state, float delta);
+void AS_tick(State *state, float delta);
 
 #endif // APP_STATE_H

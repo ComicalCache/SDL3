@@ -2,13 +2,14 @@
 #include <SDL3_image/SDL_image.h>
 #include <stdlib.h>
 
-#include "app_state.h"
+#include "state.h"
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
 
-#define FPS_LIMIT 144
-#define FRAME_TIME (1000. / (double)FPS_LIMIT)
+#define NS 1000000000
+#define FRAMES_PER_SECOND_TARGET 144
+#define FRAME_TIME_NS (NS / FRAMES_PER_SECOND_TARGET)
 
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
@@ -19,7 +20,7 @@ static Uint32 sound_len = 0;
 
 static SDL_Texture *texture = NULL;
 
-static AppState state = (AppState){0};
+static State state = (State){0};
 
 SDL_AppResult SDL_AppInit();
 SDL_AppResult SDL_AppEvent(SDL_Event *event);
@@ -40,6 +41,8 @@ int main(void) {
     }
 
     while (!halt) {
+        Uint64 frame_start = SDL_GetPerformanceCounter();
+
         // Handle events
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
@@ -58,6 +61,7 @@ int main(void) {
         if (result != SDL_APP_CONTINUE)
             break;
 
+        // Business logic
         result = SDL_AppIterate();
         switch (result) {
         case SDL_APP_CONTINUE:
@@ -66,15 +70,20 @@ int main(void) {
         case SDL_APP_FAILURE:
             halt = true;
         }
+
+        // Delay next frame if necessary to hit frame per second target
+        Uint64 frame_time_ns = (SDL_GetPerformanceCounter() - frame_start) * NS / SDL_GetPerformanceFrequency();
+        if (frame_time_ns < FRAME_TIME_NS)
+            SDL_DelayPrecise((Uint32)(FRAME_TIME_NS - frame_time_ns));
     }
 
     SDL_AppQuit(result);
 }
 
 SDL_AppResult SDL_AppInit() {
-    state = (AppState){0};
+    state = (State){0};
 
-    SDL_SetAppMetadata("Vine Boom Sound Effect Machine", "1.0.0", "cc.cmath.vine_boom");
+    SDL_SetAppMetadata("Vine Boom Sound Effect Machine", "1.0.0", "cc.cmath.vbsem");
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
@@ -89,11 +98,6 @@ SDL_AppResult SDL_AppInit() {
 
     if (!SDL_SetWindowResizable(window, true)) {
         SDL_Log("Couldn't set the window to resizable: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-
-    if (!SDL_SetRenderVSync(renderer, 1)) {
-        SDL_Log("Couldn't set the renderer to VSYNC: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
