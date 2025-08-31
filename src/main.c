@@ -1,6 +1,4 @@
-#define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
 #include <stdlib.h>
 
@@ -8,6 +6,9 @@
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
+
+#define FPS_LIMIT 144
+#define FRAME_TIME (1000. / (double)FPS_LIMIT)
 
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
@@ -18,9 +19,60 @@ static Uint32 sound_len = 0;
 
 static SDL_Texture *texture = NULL;
 
-SDL_AppResult SDL_AppInit(void **appstate, int /* argc */, char * /* argv */[]) {
-    AppState **state = (AppState **)appstate;
-    *state = (AppState *)malloc(sizeof(AppState));
+static AppState state = (AppState){0};
+
+SDL_AppResult SDL_AppInit();
+SDL_AppResult SDL_AppEvent(SDL_Event *event);
+SDL_AppResult SDL_AppIterate();
+void SDL_AppQuit(SDL_AppResult result);
+
+int main(void) {
+    bool halt;
+    SDL_AppResult result = SDL_AppInit();
+
+    switch (result) {
+    case SDL_APP_CONTINUE:
+        halt = false;
+        break;
+    case SDL_APP_SUCCESS:
+    case SDL_APP_FAILURE:
+        halt = true;
+    }
+
+    while (!halt) {
+        // Handle events
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            result = SDL_AppEvent(&event);
+            switch (result) {
+            case SDL_APP_CONTINUE:
+                continue;
+            case SDL_APP_SUCCESS:
+            case SDL_APP_FAILURE:
+                halt = true;
+                break;
+            }
+        }
+
+        // Check for early abort
+        if (result != SDL_APP_CONTINUE)
+            break;
+
+        result = SDL_AppIterate();
+        switch (result) {
+        case SDL_APP_CONTINUE:
+            break;
+        case SDL_APP_SUCCESS:
+        case SDL_APP_FAILURE:
+            halt = true;
+        }
+    }
+
+    SDL_AppQuit(result);
+}
+
+SDL_AppResult SDL_AppInit() {
+    state = (AppState){0};
 
     SDL_SetAppMetadata("Vine Boom Sound Effect Machine", "1.0.0", "cc.cmath.vine_boom");
 
@@ -63,14 +115,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int /* argc */, char * /* argv */[]) 
         return SDL_APP_FAILURE;
     }
 
-    AS_init(*state, (Vec2d){.x = WINDOW_WIDTH, .y = WINDOW_HEIGHT}, (Vec2d){.x = 75, .y = 45},
+    AS_init(&state, (Vec2d){.x = WINDOW_WIDTH, .y = WINDOW_HEIGHT}, (Vec2d){.x = 75, .y = 45},
             SDL_GetPerformanceCounter());
 
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
-    AppState *state = appstate;
+SDL_AppResult SDL_AppEvent(SDL_Event *event) {
     if (event->type == SDL_EVENT_QUIT)
         return SDL_APP_SUCCESS;
 
@@ -85,8 +136,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     }
 
     if (event->type == SDL_EVENT_WINDOW_RESIZED) {
-        state->dims.x = event->window.data1;
-        state->dims.y = event->window.data2;
+        state.dims.x = event->window.data1;
+        state.dims.y = event->window.data2;
 
         return SDL_APP_CONTINUE;
     }
@@ -94,9 +145,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult SDL_AppIterate(void *appstate) {
-    AppState *state = appstate;
-
+SDL_AppResult SDL_AppIterate() {
     // Background
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
@@ -104,11 +153,11 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     // Calculate frame delta
     const Uint64 counter = SDL_GetPerformanceCounter();
     const Uint64 freq = SDL_GetPerformanceFrequency();
-    float delta = (float)(counter - state->prev_counter) / (float)freq;
-    state->prev_counter = counter;
+    float delta = (float)(counter - state.prev_counter) / (float)freq;
+    state.prev_counter = counter;
 
     // Update state
-    AS_tick(state, delta);
+    AS_tick(&state, delta);
 
     // DVD logo
     const Uint64 ticks = SDL_GetTicks();
@@ -117,30 +166,25 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     const float green = (float)(0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 2 / 3));
     const float blue = (float)(0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 4 / 3));
     SDL_SetTextureColorModFloat(texture, red, green, blue);
-    SDL_RenderTexture(renderer, texture, NULL, &state->rect);
+    SDL_RenderTexture(renderer, texture, NULL, &state.rect);
 
     // FPS count
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
     SDL_RenderDebugTextFormat(renderer, 0.f, 0.f, "FPS: %d", (int)(1. / (double)delta));
 
-    // Render all
-    SDL_RenderPresent(renderer);
-
     // Play sound
-    if (state->hit_wall) {
+    if (state.hit_wall) {
         SDL_ClearAudioStream(audio);
         SDL_PutAudioStreamData(audio, sound_buffer, (int)sound_len);
     }
 
+    // Render all
+    SDL_RenderPresent(renderer);
+
     return SDL_APP_CONTINUE;
 }
 
-void SDL_AppQuit(void *appstate, const SDL_AppResult result) {
-    AppState *state = appstate;
-
-    if (state)
-        free(state);
-
+void SDL_AppQuit(const SDL_AppResult result) {
     if (texture)
         SDL_DestroyTexture(texture);
 
@@ -156,12 +200,6 @@ void SDL_AppQuit(void *appstate, const SDL_AppResult result) {
     if (window)
         SDL_DestroyWindow(window);
 
-    switch (result) {
-    case SDL_APP_FAILURE:
+    if (result == SDL_APP_FAILURE)
         SDL_Log("App quit with failure");
-        break;
-    case SDL_APP_CONTINUE:
-    case SDL_APP_SUCCESS:
-        break;
-    }
 }
