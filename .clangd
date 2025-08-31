@@ -1,0 +1,9 @@
+CompileFlags:
+    Add:
+        - --language=c
+        - -std=c23
+        - -I/opt/homebrew/include
+        - -Weverything
+        - -Wno-declaration-after-statement
+        - -Wno-switch-default
+        - -Wno-pre-c23-compat
