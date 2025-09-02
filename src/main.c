@@ -1,8 +1,9 @@
 #include <SDL3/SDL.h>
-#include <SDL3_image/SDL_image.h>
+#include <SDL3/SDL_gpu.h>
 #include <stdlib.h>
 
-#include "state.h"
+#include "utility.h"
+#include "vertex.h"
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
@@ -12,15 +13,11 @@
 #define FRAME_TIME_NS (NS / FRAMES_PER_SECOND_TARGET)
 
 static SDL_Window *window = NULL;
-static SDL_Renderer *renderer = NULL;
-static SDL_AudioStream *audio = NULL;
+static SDL_GPUDevice *gpu = NULL;
 
-static Uint8 *sound_buffer = NULL;
-static Uint32 sound_len = 0;
-
-static SDL_Texture *texture = NULL;
-
-static State state = (State){0};
+static SDL_GPUGraphicsPipeline *pipeline = NULL;
+static SDL_GPUBuffer *vertex_buffer = NULL;
+static SDL_GPUTransferBuffer *transfer_buffer = NULL;
 
 SDL_AppResult SDL_AppInit();
 SDL_AppResult SDL_AppEvent(SDL_Event *event);
@@ -74,52 +71,125 @@ int main(void) {
         // Delay next frame if necessary to hit frame per second target
         Uint64 frame_time_ns = (SDL_GetPerformanceCounter() - frame_start) * NS / SDL_GetPerformanceFrequency();
         if (frame_time_ns < FRAME_TIME_NS)
-            SDL_DelayPrecise((Uint32)(FRAME_TIME_NS - frame_time_ns));
+            SDL_DelayPrecise(FRAME_TIME_NS - frame_time_ns);
     }
 
     SDL_AppQuit(result);
 }
 
 SDL_AppResult SDL_AppInit() {
-    state = (State){0};
-
     SDL_SetAppMetadata("SDL3", "1.0.0", "cc.cmath.sdl3");
 
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
+    // Initialize SDL3
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    if (!SDL_CreateWindowAndRenderer("SDL3", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer)) {
-        SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
+    // Create window
+    window = SDL_CreateWindow("SDL3 + Metal", 620, 480, SDL_WINDOW_RESIZABLE | SDL_WINDOW_METAL);
+    if (!window) {
+        SDL_Log("Couldn't create window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    if (!SDL_SetWindowResizable(window, true)) {
-        SDL_Log("Couldn't set the window to resizable: %s", SDL_GetError());
+    // Create GPU device and claim window for GPU device
+    gpu = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_MSL, false, NULL);
+    if (!gpu) {
+        SDL_Log("Couldn't create gpu device: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+    if (!SDL_ClaimWindowForGPUDevice(gpu, window)) {
+        SDL_Log("Couldn't claim window for gpu device: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    SDL_AudioSpec audio_spec;
-    if (!SDL_LoadWAV("media/effect.wav", &audio_spec, &sound_buffer, &sound_len)) {
-        SDL_Log("Couldn't load WAV: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-    audio = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, NULL, NULL);
-    if (!audio) {
-        SDL_Log("Couldn't open audio device: %s", SDL_GetError());
-        return SDL_APP_FAILURE;
-    }
-    SDL_ResumeAudioStreamDevice(audio);
-
-    texture = IMG_LoadTexture(renderer, "media/dvd.svg");
-    if (!texture) {
-        SDL_Log("Couldn't create texture: %s", SDL_GetError());
+    // Disable VSYNC
+    if (!SDL_SetGPUSwapchainParameters(gpu, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_IMMEDIATE)) {
+        SDL_Log("Failed to disable VSYNC: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    AS_init(&state, (Vec2d){.x = WINDOW_WIDTH, .y = WINDOW_HEIGHT}, (Vec2d){.x = 75, .y = 45},
-            SDL_GetPerformanceCounter());
+    // Load vertex shader
+    SDL_GPUShader *vertex_shader = load_shader(gpu, "shaders/vert.metal", "vertex_main", SDL_GPU_SHADERSTAGE_VERTEX);
+    if (!vertex_shader) {
+        SDL_Log("Failed to load vertex shader: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    // Load fragment shader
+    SDL_GPUShader *fragment_shader =
+        load_shader(gpu, "shaders/frag.metal", "fragment_main", SDL_GPU_SHADERSTAGE_VERTEX);
+    if (!fragment_shader) {
+        SDL_Log("Failed to load fragment shader: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    // Create pipeline info
+    SDL_GPUGraphicsPipelineCreateInfo pipeline_create_info = {
+        .rasterizer_state = {.fill_mode = SDL_GPU_FILLMODE_FILL,
+                             .cull_mode = SDL_GPU_CULLMODE_BACK,
+                             .front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE},
+        .target_info =
+            {
+                .num_color_targets = 1,
+                .color_target_descriptions =
+                    (SDL_GPUColorTargetDescription[]){
+                        {.format = SDL_GetGPUSwapchainTextureFormat(gpu, window),
+                         .blend_state = {.enable_blend = true,
+                                         .color_blend_op = SDL_GPU_BLENDOP_ADD,
+                                         .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+                                         .src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+                                         .dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                                         .src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+                                         .dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA}}},
+            },
+        .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+        .vertex_shader = vertex_shader,
+        .fragment_shader = fragment_shader,
+        .vertex_input_state = {
+            .num_vertex_buffers = 1,
+            .vertex_buffer_descriptions =
+                (SDL_GPUVertexBufferDescription[]){{.slot = 0,
+                                                    .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+                                                    .instance_step_rate = 0,
+                                                    .pitch = sizeof(Vertex)}},
+            .num_vertex_attributes = 2,
+            .vertex_attributes = (SDL_GPUVertexAttribute[]){
+                {.buffer_slot = 0, .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, .location = 0, .offset = 0},
+                {.buffer_slot = 0,
+                 .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
+                 .location = 1,
+                 .offset = sizeof(float) * 2}}}};
+
+    // Create pipeline
+    pipeline = SDL_CreateGPUGraphicsPipeline(gpu, &pipeline_create_info);
+    if (!pipeline) {
+        SDL_Log("Failed to create pipeline: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    // Clean up resources
+    SDL_ReleaseGPUShader(gpu, vertex_shader);
+    SDL_ReleaseGPUShader(gpu, fragment_shader);
+
+    // Create vertex buffer
+    SDL_GPUBufferCreateInfo buffer_create_info = {.usage = SDL_GPU_BUFFERUSAGE_VERTEX,
+                                                  .size = (Uint32)(sizeof(Vertex) * num_verticies)};
+    vertex_buffer = SDL_CreateGPUBuffer(gpu, &buffer_create_info);
+    if (!vertex_buffer) {
+        SDL_Log("Failed to create vertex buffer: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    // Create transfer buffer
+    SDL_GPUTransferBufferCreateInfo transer_buffer_create_info = {.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+                                                                  .size = (Uint32)(sizeof(Vertex) * num_verticies)};
+    transfer_buffer = SDL_CreateGPUTransferBuffer(gpu, &transer_buffer_create_info);
+    if (!transfer_buffer) {
+        SDL_Log("Failed to create transfer buffer: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
 
     return SDL_APP_CONTINUE;
 }
@@ -138,67 +208,82 @@ SDL_AppResult SDL_AppEvent(SDL_Event *event) {
         }
     }
 
-    if (event->type == SDL_EVENT_WINDOW_RESIZED) {
-        state.dims.x = event->window.data1;
-        state.dims.y = event->window.data2;
-
-        return SDL_APP_CONTINUE;
-    }
-
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppIterate() {
-    // Background
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-    SDL_RenderClear(renderer);
-
-    // Calculate frame delta
-    const Uint64 counter = SDL_GetPerformanceCounter();
-    const Uint64 freq = SDL_GetPerformanceFrequency();
-    float delta = (float)(counter - state.prev_counter) / (float)freq;
-    state.prev_counter = counter;
-
-    // Update state
-    AS_tick(&state, delta);
-
-    // DVD logo
-    const Uint64 ticks = SDL_GetTicks();
-    const double now = (double)ticks / 1000.0;
-    const float red = (float)(0.5 + 0.5 * SDL_sin(now));
-    const float green = (float)(0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 2 / 3));
-    const float blue = (float)(0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 4 / 3));
-    SDL_SetTextureColorModFloat(texture, red, green, blue);
-    SDL_RenderTexture(renderer, texture, NULL, &state.rect);
-
-    // FPS count
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-    SDL_RenderDebugTextFormat(renderer, 0.f, 0.f, "FPS: %d", (int)(1. / (double)delta));
-
-    // Play sound
-    if (state.hit_wall) {
-        SDL_ClearAudioStream(audio);
-        SDL_PutAudioStreamData(audio, sound_buffer, (int)sound_len);
+    SDL_GPUCommandBuffer *cmd_buffer = SDL_AcquireGPUCommandBuffer(gpu);
+    if (!cmd_buffer) {
+        SDL_Log("Failed to get GPU command buffer: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
     }
 
-    // Render all
-    SDL_RenderPresent(renderer);
+    // Begin the copy pass
+    SDL_GPUCopyPass *copy_pass = SDL_BeginGPUCopyPass(cmd_buffer);
+
+    // Map the transfer buffer to the GPU
+    Vertex *vertex_ptr = SDL_MapGPUTransferBuffer(gpu, transfer_buffer, false);
+    SDL_memcpy(vertex_ptr, verticies, sizeof(Vertex) * num_verticies);
+    SDL_UnmapGPUTransferBuffer(gpu, transfer_buffer);
+
+    // Copy our verticies
+    SDL_GPUTransferBufferLocation source_buffer = {.transfer_buffer = transfer_buffer, .offset = 0};
+    SDL_GPUBufferRegion target_buffer = {
+        .buffer = vertex_buffer, .offset = 0, .size = (Uint32)(sizeof(Vertex) * num_verticies)};
+    SDL_UploadToGPUBuffer(copy_pass, &source_buffer, &target_buffer, true);
+
+    // End copy pass
+    SDL_EndGPUCopyPass(copy_pass);
+
+    // Get swapchain texture
+    SDL_GPUTexture *texture;
+    if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmd_buffer, window, &texture, NULL, NULL)) {
+        SDL_Log("Failed to wait for and acquire GPU swapchain texture: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+    if (!texture) {
+        // Window may be minimized
+        return SDL_APP_CONTINUE;
+    }
+
+    // Set clear color
+    SDL_GPUColorTargetInfo color_target_info = {
+        .texture = texture,
+        .cycle = true,
+        .clear_color = (SDL_FColor){0.16f, 0.47f, 0.34f, 1.0f},
+        .load_op = SDL_GPU_LOADOP_CLEAR,
+        .store_op = SDL_GPU_STOREOP_STORE,
+    };
+
+    // Begin render pass
+    SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(cmd_buffer, &color_target_info, 1, NULL);
+
+    SDL_BindGPUGraphicsPipeline(render_pass, pipeline);
+    SDL_GPUBufferBinding vertexBufferBinding = {.buffer = vertex_buffer, .offset = 0};
+    SDL_BindGPUVertexBuffers(render_pass, 0, &vertexBufferBinding, 1);
+    SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
+
+    // End render pass
+    SDL_EndGPURenderPass(render_pass);
+
+    // Submit the command buffer
+    SDL_SubmitGPUCommandBuffer(cmd_buffer);
 
     return SDL_APP_CONTINUE;
 }
 
 void SDL_AppQuit(const SDL_AppResult result) {
-    if (texture)
-        SDL_DestroyTexture(texture);
+    if (transfer_buffer)
+        SDL_ReleaseGPUTransferBuffer(gpu, transfer_buffer);
 
-    if (audio)
-        SDL_DestroyAudioStream(audio);
+    if (vertex_buffer)
+        SDL_ReleaseGPUBuffer(gpu, vertex_buffer);
 
-    if (sound_buffer)
-        SDL_free(sound_buffer);
+    if (pipeline)
+        SDL_ReleaseGPUGraphicsPipeline(gpu, pipeline);
 
-    if (renderer)
-        SDL_DestroyRenderer(renderer);
+    if (gpu)
+        SDL_DestroyGPUDevice(gpu);
 
     if (window)
         SDL_DestroyWindow(window);
