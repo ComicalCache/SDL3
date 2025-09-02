@@ -1,7 +1,7 @@
 CC := /usr/bin/gcc
 CFLAGS := -std=c23 -Wall -Wpedantic -Wextra -D_THREAD_SAFE -O3
 LIBS := -L/opt/homebrew/lib -lSDL3 -lSDL3_image
-INCLUDES := -I/opt/homebrew/include/
+INCLUDES := -I/opt/homebrew/include
 SRC_DIR := src
 BUILD_DIR := build
 BIN := $(BUILD_DIR)/vbsem

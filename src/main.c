@@ -83,15 +83,14 @@ int main(void) {
 SDL_AppResult SDL_AppInit() {
     state = (State){0};
 
-    SDL_SetAppMetadata("Vine Boom Sound Effect Machine", "1.0.0", "cc.cmath.vbsem");
+    SDL_SetAppMetadata("SDL3", "1.0.0", "cc.cmath.sdl3");
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    if (!SDL_CreateWindowAndRenderer("Vine Boom Sound Effect Machine", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window,
-                                     &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("SDL3", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer)) {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
