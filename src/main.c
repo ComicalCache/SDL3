@@ -2,6 +2,7 @@
 #include <SDL3/SDL_gpu.h>
 #include <stdlib.h>
 
+#include "uniform.h"
 #include "utility.h"
 #include "vertex.h"
 
@@ -18,6 +19,8 @@ static SDL_GPUDevice *gpu = NULL;
 static SDL_GPUGraphicsPipeline *pipeline = NULL;
 static SDL_GPUBuffer *vertex_buffer = NULL;
 static SDL_GPUTransferBuffer *transfer_buffer = NULL;
+
+static Uniform uniform_data = {0};
 
 SDL_AppResult SDL_AppInit();
 SDL_AppResult SDL_AppEvent(SDL_Event *event);
@@ -111,7 +114,7 @@ SDL_AppResult SDL_AppInit() {
     }
 
     // Load vertex shader
-    SDL_GPUShader *vertex_shader = load_shader(gpu, "shaders/vert.metal", "vertex_main", SDL_GPU_SHADERSTAGE_VERTEX);
+    SDL_GPUShader *vertex_shader = load_shader(gpu, "shaders/vert.metal", "vertex_main", SDL_GPU_SHADERSTAGE_VERTEX, 1);
     if (!vertex_shader) {
         SDL_Log("Failed to load vertex shader: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -119,7 +122,7 @@ SDL_AppResult SDL_AppInit() {
 
     // Load fragment shader
     SDL_GPUShader *fragment_shader =
-        load_shader(gpu, "shaders/frag.metal", "fragment_main", SDL_GPU_SHADERSTAGE_VERTEX);
+        load_shader(gpu, "shaders/frag.metal", "fragment_main", SDL_GPU_SHADERSTAGE_VERTEX, 0);
     if (!fragment_shader) {
         SDL_Log("Failed to load fragment shader: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -175,7 +178,7 @@ SDL_AppResult SDL_AppInit() {
 
     // Create vertex buffer
     SDL_GPUBufferCreateInfo buffer_create_info = {.usage = SDL_GPU_BUFFERUSAGE_VERTEX,
-                                                  .size = (Uint32)(sizeof(Vertex) * num_verticies)};
+                                                  .size = (Uint32)(sizeof(Vertex) * num_vertices)};
     vertex_buffer = SDL_CreateGPUBuffer(gpu, &buffer_create_info);
     if (!vertex_buffer) {
         SDL_Log("Failed to create vertex buffer: %s", SDL_GetError());
@@ -184,7 +187,7 @@ SDL_AppResult SDL_AppInit() {
 
     // Create transfer buffer
     SDL_GPUTransferBufferCreateInfo transer_buffer_create_info = {.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-                                                                  .size = (Uint32)(sizeof(Vertex) * num_verticies)};
+                                                                  .size = (Uint32)(sizeof(Vertex) * num_vertices)};
     transfer_buffer = SDL_CreateGPUTransferBuffer(gpu, &transer_buffer_create_info);
     if (!transfer_buffer) {
         SDL_Log("Failed to create transfer buffer: %s", SDL_GetError());
@@ -212,6 +215,21 @@ SDL_AppResult SDL_AppEvent(SDL_Event *event) {
 }
 
 SDL_AppResult SDL_AppIterate() {
+    int width, height;
+    SDL_GetWindowSize(window, &width, &height);
+
+    // Set the angle to rotate to
+    Uint64 ticks = SDL_GetTicks();
+    double now = ((double)ticks / 1000.0);
+    uniform_data.angle = (float)now;
+    set_projection(&uniform_data, width, height);
+
+    // Calculate the background color
+    const float red = (float)(0.5 + 0.5 * SDL_sin(now));
+    const float green = (float)(0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 2 / 3));
+    const float blue = (float)(0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 4 / 3));
+
+    // Create GPU commands
     SDL_GPUCommandBuffer *cmd_buffer = SDL_AcquireGPUCommandBuffer(gpu);
     if (!cmd_buffer) {
         SDL_Log("Failed to get GPU command buffer: %s", SDL_GetError());
@@ -223,13 +241,13 @@ SDL_AppResult SDL_AppIterate() {
 
     // Map the transfer buffer to the GPU
     Vertex *vertex_ptr = SDL_MapGPUTransferBuffer(gpu, transfer_buffer, false);
-    SDL_memcpy(vertex_ptr, verticies, sizeof(Vertex) * num_verticies);
+    SDL_memcpy(vertex_ptr, vertices, sizeof(Vertex) * num_vertices);
     SDL_UnmapGPUTransferBuffer(gpu, transfer_buffer);
 
-    // Copy our verticies
+    // Copy our vertices
     SDL_GPUTransferBufferLocation source_buffer = {.transfer_buffer = transfer_buffer, .offset = 0};
     SDL_GPUBufferRegion target_buffer = {
-        .buffer = vertex_buffer, .offset = 0, .size = (Uint32)(sizeof(Vertex) * num_verticies)};
+        .buffer = vertex_buffer, .offset = 0, .size = (Uint32)(sizeof(Vertex) * num_vertices)};
     SDL_UploadToGPUBuffer(copy_pass, &source_buffer, &target_buffer, true);
 
     // End copy pass
@@ -250,7 +268,7 @@ SDL_AppResult SDL_AppIterate() {
     SDL_GPUColorTargetInfo color_target_info = {
         .texture = texture,
         .cycle = true,
-        .clear_color = (SDL_FColor){0.16f, 0.47f, 0.34f, 1.0f},
+        .clear_color = (SDL_FColor){red, green, blue, 1.0f},
         .load_op = SDL_GPU_LOADOP_CLEAR,
         .store_op = SDL_GPU_STOREOP_STORE,
     };
@@ -258,9 +276,17 @@ SDL_AppResult SDL_AppIterate() {
     // Begin render pass
     SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(cmd_buffer, &color_target_info, 1, NULL);
 
+    // Bind pipeline
     SDL_BindGPUGraphicsPipeline(render_pass, pipeline);
+
+    // Push uniform data
+    SDL_PushGPUVertexUniformData(cmd_buffer, 0, (void *)&uniform_data, sizeof(Uniform));
+
+    // Push vertex data
     SDL_GPUBufferBinding vertexBufferBinding = {.buffer = vertex_buffer, .offset = 0};
     SDL_BindGPUVertexBuffers(render_pass, 0, &vertexBufferBinding, 1);
+
+    // Draw pushed data
     SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
 
     // End render pass

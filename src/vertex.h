@@ -6,7 +6,7 @@ typedef struct Vertex {
     float r, g, b, a;
 } Vertex;
 
-extern const unsigned long num_verticies;
-extern const Vertex verticies[];
+extern const unsigned long num_vertices;
+extern const Vertex vertices[];
 
 #endif

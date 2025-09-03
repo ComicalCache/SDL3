@@ -8,3 +8,4 @@ CompileFlags:
         - -Wno-switch-default
         - -Wno-pre-c23-compat
         - -Wno-empty-translation-unit
+        - -Wno-unsafe-buffer-usage
