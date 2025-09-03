@@ -2,10 +2,10 @@
 #define UNIFORM_H
 
 typedef struct {
-    float projection[16];
-    float angle;
+    float aspect_ration;
+    float x_angle;
+    float y_angle;
+    float z_angle;
 } Uniform;
-
-void set_projection(Uniform *uniform, int width, int height);
 
 #endif

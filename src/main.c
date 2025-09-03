@@ -97,7 +97,7 @@ SDL_AppResult SDL_AppInit() {
     }
 
     // Create GPU device and claim window for GPU device
-    gpu = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_MSL, false, NULL);
+    gpu = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_MSL, true, NULL);
     if (!gpu) {
         SDL_Log("Couldn't create gpu device: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -122,7 +122,7 @@ SDL_AppResult SDL_AppInit() {
 
     // Load fragment shader
     SDL_GPUShader *fragment_shader =
-        load_shader(gpu, "shaders/frag.metal", "fragment_main", SDL_GPU_SHADERSTAGE_VERTEX, 0);
+        load_shader(gpu, "shaders/frag.metal", "fragment_main", SDL_GPU_SHADERSTAGE_FRAGMENT, 0);
     if (!fragment_shader) {
         SDL_Log("Failed to load fragment shader: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -131,7 +131,7 @@ SDL_AppResult SDL_AppInit() {
     // Create pipeline info
     SDL_GPUGraphicsPipelineCreateInfo pipeline_create_info = {
         .rasterizer_state = {.fill_mode = SDL_GPU_FILLMODE_FILL,
-                             .cull_mode = SDL_GPU_CULLMODE_BACK,
+                             .cull_mode = SDL_GPU_CULLMODE_NONE,
                              .front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE},
         .target_info =
             {
@@ -221,13 +221,10 @@ SDL_AppResult SDL_AppIterate() {
     // Set the angle to rotate to
     Uint64 ticks = SDL_GetTicks();
     double now = ((double)ticks / 1000.0);
-    uniform_data.angle = (float)now;
-    set_projection(&uniform_data, width, height);
-
-    // Calculate the background color
-    const float red = (float)(0.5 + 0.5 * SDL_sin(now));
-    const float green = (float)(0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 2 / 3));
-    const float blue = (float)(0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 4 / 3));
+    uniform_data.aspect_ration = (float)height / (float)width;
+    uniform_data.x_angle = (float)now;
+    uniform_data.y_angle = (float)now;
+    uniform_data.z_angle = (float)now;
 
     // Create GPU commands
     SDL_GPUCommandBuffer *cmd_buffer = SDL_AcquireGPUCommandBuffer(gpu);
@@ -268,7 +265,7 @@ SDL_AppResult SDL_AppIterate() {
     SDL_GPUColorTargetInfo color_target_info = {
         .texture = texture,
         .cycle = true,
-        .clear_color = (SDL_FColor){red, green, blue, 1.0f},
+        .clear_color = (SDL_FColor){0.11f, 0.11f, 0.11f, 1.0f},
         .load_op = SDL_GPU_LOADOP_CLEAR,
         .store_op = SDL_GPU_STOREOP_STORE,
     };
