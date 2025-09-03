@@ -280,8 +280,8 @@ SDL_AppResult SDL_AppIterate() {
     SDL_PushGPUVertexUniformData(cmd_buffer, 0, (void *)&uniform_data, sizeof(Uniform));
 
     // Push vertex data
-    SDL_GPUBufferBinding vertexBufferBinding = {.buffer = vertex_buffer, .offset = 0};
-    SDL_BindGPUVertexBuffers(render_pass, 0, &vertexBufferBinding, 1);
+    SDL_GPUBufferBinding vertex_buffer_binding = {.buffer = vertex_buffer, .offset = 0};
+    SDL_BindGPUVertexBuffers(render_pass, 0, &vertex_buffer_binding, 1);
 
     // Draw pushed data
     SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);

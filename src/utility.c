@@ -8,16 +8,16 @@ SDL_GPUShader *load_shader(SDL_GPUDevice *gpu, const char *path, const char *ent
         return NULL;
     }
 
-    SDL_GPUShaderCreateInfo shaderInfo = {.code = file,
-                                          .code_size = file_size,
-                                          .entrypoint = entrypoint,
-                                          .format = SDL_GPU_SHADERFORMAT_MSL,
-                                          .stage = stage,
-                                          .num_samplers = 0,
-                                          .num_uniform_buffers = num_uniform_buffers,
-                                          .num_storage_buffers = 0,
-                                          .num_storage_textures = 0};
-    SDL_GPUShader *shader = SDL_CreateGPUShader(gpu, &shaderInfo);
+    SDL_GPUShaderCreateInfo shader_info = {.code = file,
+                                           .code_size = file_size,
+                                           .entrypoint = entrypoint,
+                                           .format = SDL_GPU_SHADERFORMAT_MSL,
+                                           .stage = stage,
+                                           .num_samplers = 0,
+                                           .num_uniform_buffers = num_uniform_buffers,
+                                           .num_storage_buffers = 0,
+                                           .num_storage_textures = 0};
+    SDL_GPUShader *shader = SDL_CreateGPUShader(gpu, &shader_info);
 
     SDL_free(file);
 
