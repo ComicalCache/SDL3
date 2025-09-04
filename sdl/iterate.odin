@@ -1,10 +1,16 @@
 package sdl
 
+import "core:math/linalg"
 import "core:text/edit"
 import "core:text/i18n"
 import sdl3 "vendor:sdl3"
 
 import "../data"
+
+rot_speed := linalg.to_radians(f32(90))
+angle := f32(0)
+
+last_ticks := sdl3.GetTicks()
 
 @(require_results)
 iterate :: proc(
@@ -14,19 +20,22 @@ iterate :: proc(
     transfer_buffer: ^sdl3.GPUTransferBuffer,
     vertex_buffer: ^sdl3.GPUBuffer,
 ) -> sdl3.AppResult {
-    width: i32 = 0
-    height: i32 = 0
-    sdl3.GetWindowSize(window, &width, &height)
+    win_size: [2]i32
+    sdl3.GetWindowSize(window, &win_size.x, &win_size.y)
 
     // Set rotation angle
-    ticks := sdl3.GetTicks()
-    now := f32(ticks) / 1000
-    uniform_data := data.Uniform {
-        aspect_ratio = f32(height) / f32(width),
-        x_angle      = f32(now),
-        y_angle      = f32(now),
-        z_angle      = f32(now),
-    }
+    new_ticks := sdl3.GetTicks()
+    delta_time := f32(new_ticks - last_ticks) / 1000
+    last_ticks = new_ticks
+    angle += rot_speed * delta_time
+    uniform_data := data.mvp(
+        angle,
+        {0, 0, -50},
+        {0, 0, -0},
+        {0, 0, -50},
+        linalg.to_radians(f32(60)),
+        f32(win_size.x) / f32(win_size.y),
+    )
 
     // Create GPU commands
     cmd_buffer := sdl3.AcquireGPUCommandBuffer(gpu)
@@ -35,13 +44,13 @@ iterate :: proc(
         return .FAILURE
     }
 
-    // Begin copy pass
-    copy_pass := sdl3.BeginGPUCopyPass(cmd_buffer)
-
     // Map the transfer buffer to the GPU
     vertex_ptr := sdl3.MapGPUTransferBuffer(gpu, transfer_buffer, false)
     sdl3.memcpy(vertex_ptr, rawptr(&data.VERTICES), size_of(data.Vertex) * len(data.VERTICES))
     sdl3.UnmapGPUTransferBuffer(gpu, transfer_buffer)
+
+    // Begin copy pass
+    copy_pass := sdl3.BeginGPUCopyPass(cmd_buffer)
 
     // Copy our vertices
     source_buffer := sdl3.GPUTransferBufferLocation {
@@ -53,7 +62,7 @@ iterate :: proc(
         offset = 0,
         size   = size_of(data.Vertex) * len(data.VERTICES),
     }
-    sdl3.UploadToGPUBuffer(copy_pass, source_buffer, target_buffer, true)
+    sdl3.UploadToGPUBuffer(copy_pass, source_buffer, target_buffer, false)
 
     // End copy pass
     sdl3.EndGPUCopyPass(copy_pass)
@@ -72,8 +81,7 @@ iterate :: proc(
     // Set clear color
     color_target_info := sdl3.GPUColorTargetInfo {
         texture     = texture,
-        cycle       = true,
-        clear_color = sdl3.FColor{.11, .11, .11, 1},
+        clear_color = {.11, .11, .11, 1},
         load_op     = .CLEAR,
         store_op    = .STORE,
     }
@@ -87,7 +95,7 @@ iterate :: proc(
     // Push uniform data
     sdl3.PushGPUVertexUniformData(cmd_buffer, 0, rawptr(&uniform_data), size_of(data.Uniform))
 
-    // Push vertex data
+    // Bind vertex data
     vertex_buffer_binding := sdl3.GPUBufferBinding {
         buffer = vertex_buffer,
         offset = 0,

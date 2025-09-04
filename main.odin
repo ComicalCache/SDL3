@@ -9,6 +9,8 @@ FPS_TARGET :: 144
 FRAME_TIME_NS :: (NS / FPS_TARGET)
 
 main :: proc() {
+    sdl3.SetLogPriorities(.DEBUG)
+
     window: ^sdl3.Window = nil
     gpu: ^sdl3.GPUDevice = nil
 

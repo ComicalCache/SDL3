@@ -12,7 +12,10 @@ init :: proc(
     vertex_buffer: ^^sdl3.GPUBuffer,
     transfer_buffer: ^^sdl3.GPUTransferBuffer,
 ) -> sdl3.AppResult {
-    assert(sdl3.SetAppMetadata("SDl3 + Metal", "1.0.0", "cc.cmath.sdl3"))
+    if !sdl3.SetAppMetadata("SDl3 + Metal", "1.0.0", "cc.cmath.sdl3") {
+        sdl3.Log("Couldn't set app metadata: %s", sdl3.GetError())
+        return .FAILURE
+    }
 
     // Initialize SDL3
     if !sdl3.Init({.VIDEO}) {
@@ -59,8 +62,7 @@ init :: proc(
     }
 
     // Create color target descriptions
-    color_target_descriptions := make([^]sdl3.GPUColorTargetDescription, 1)
-    color_target_descriptions[0] = sdl3.GPUColorTargetDescription {
+    color_target_description := sdl3.GPUColorTargetDescription {
         format = sdl3.GetGPUSwapchainTextureFormat(gpu^, window^),
         blend_state = {
             enable_blend = true,
@@ -74,8 +76,7 @@ init :: proc(
     }
 
     // Create vertex buffer descriptions
-    vertex_buffer_descriptions := make([^]sdl3.GPUVertexBufferDescription, 1)
-    vertex_buffer_descriptions[0] = sdl3.GPUVertexBufferDescription {
+    vertex_buffer_description := sdl3.GPUVertexBufferDescription {
         slot               = 0,
         input_rate         = .VERTEX,
         instance_step_rate = 0,
@@ -83,32 +84,23 @@ init :: proc(
     }
 
     // Create vertex attributes
-    vertex_attributes := make([^]sdl3.GPUVertexAttribute, 2)
-    vertex_attributes[0] = sdl3.GPUVertexAttribute {
-        buffer_slot = 0,
-        format      = .FLOAT2,
-        location    = 0,
-        offset      = 0,
-    }
-    vertex_attributes[1] = sdl3.GPUVertexAttribute {
-        buffer_slot = 0,
-        format      = .FLOAT4,
-        location    = 1,
-        offset      = size_of(f32) * 2,
+    vertex_attributes := []sdl3.GPUVertexAttribute {
+        {buffer_slot = 0, format = .FLOAT3, location = 0, offset = u32(offset_of(data.Vertex, pos))},
+        {buffer_slot = 0, format = .FLOAT3, location = 1, offset = u32(offset_of(data.Vertex, col))},
     }
 
     // Create pipeline info
     pipeline_create_info: sdl3.GPUGraphicsPipelineCreateInfo = {
         rasterizer_state = {fill_mode = .FILL, cull_mode = .NONE, front_face = .CLOCKWISE},
-        target_info = {num_color_targets = 1, color_target_descriptions = color_target_descriptions},
+        target_info = {num_color_targets = 1, color_target_descriptions = &color_target_description},
         primitive_type = .TRIANGLELIST,
         vertex_shader = vertex_shader,
         fragment_shader = fragment_shader,
         vertex_input_state = {
             num_vertex_buffers = 1,
-            vertex_buffer_descriptions = vertex_buffer_descriptions,
-            num_vertex_attributes = 2,
-            vertex_attributes = vertex_attributes,
+            vertex_buffer_descriptions = &vertex_buffer_description,
+            num_vertex_attributes = u32(len(vertex_attributes)),
+            vertex_attributes = raw_data(vertex_attributes),
         },
     }
 

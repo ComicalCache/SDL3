@@ -1,21 +1,20 @@
 package data
 
+// Triangle side length
 @(private)
-r :: .6
+l :: 30
+
+// sqrt(3) / 2
 @(private)
 lambda :: 0.8660254
 
 Vertex :: struct {
-	x: f32,
-	y: f32,
-	r: f32,
-	g: f32,
-	b: f32,
-	a: f32,
+    pos: [3]f32,
+    col: [3]f32,
 }
 
 VERTICES: [3]Vertex = {
-	Vertex{x = 0, y = r, r = 1, g = 0, b = 0, a = 1},
-	Vertex{x = -lambda * r, y = -.5 * r, r = 0, g = 1, b = 0, a = 1},
-	Vertex{x = lambda * r, y = -.5 * r, r = 0, g = 0, b = 1, a = 1},
+    Vertex{pos = {0, 2 * lambda * l / 3, 0}, col = {1, 0, 0}},
+    Vertex{pos = {l / 2, -lambda * l / 3, 0}, col = {0, 1, 0}},
+    Vertex{pos = {-l / 2, -lambda * l / 3, 0}, col = {0, 0, 1}},
 }
