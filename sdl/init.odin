@@ -9,7 +9,7 @@ init :: proc(
     window: ^^sdl3.Window,
     gpu: ^^sdl3.GPUDevice,
     pipeline: ^^sdl3.GPUGraphicsPipeline,
-    vertex_buffer: ^^sdl3.GPUBuffer,
+    vertex_buffer, index_buffer: ^^sdl3.GPUBuffer,
     transfer_buffer: ^^sdl3.GPUTransferBuffer,
 ) -> sdl3.AppResult {
     if !sdl3.SetAppMetadata("SDl3 + Metal", "1.0.0", "cc.cmath.sdl3") {
@@ -50,14 +50,14 @@ init :: proc(
     // Load vertex shader
     vertex_shader := load_shader(gpu^, "shaders/vert.metal", "vertex_main", .VERTEX, 1)
     if vertex_shader == nil {
-        sdl3.Log("Couldn't to load vertex shader: %s", sdl3.GetError())
+        sdl3.Log("Couldn't load vertex shader: %s", sdl3.GetError())
         return .FAILURE
     }
 
     // Load fragment shader
     fragment_shader := load_shader(gpu^, "shaders/frag.metal", "fragment_main", .FRAGMENT, 0)
     if fragment_shader == nil {
-        sdl3.Log("Couldn't to load fragment shader: %s", sdl3.GetError())
+        sdl3.Log("Couldn't load fragment shader: %s", sdl3.GetError())
         return .FAILURE
     }
 
@@ -107,7 +107,7 @@ init :: proc(
     // Create pipeline
     pipeline^ = sdl3.CreateGPUGraphicsPipeline(gpu^, pipeline_create_info)
     if pipeline^ == nil {
-        sdl3.Log("Couldn't to create graphics pipeline: %s", sdl3.GetError())
+        sdl3.Log("Couldn't create graphics pipeline: %s", sdl3.GetError())
         return .FAILURE
     }
 
@@ -116,24 +116,26 @@ init :: proc(
     sdl3.ReleaseGPUShader(gpu^, fragment_shader)
 
     // Create vertex buffer
-    buffer_create_info := sdl3.GPUBufferCreateInfo {
-        usage = {.VERTEX},
-        size  = u32(size_of(data.Vertex) * len(data.VERTICES)),
-    }
-    vertex_buffer^ = sdl3.CreateGPUBuffer(gpu^, buffer_create_info)
+    vertex_buffer^ = sdl3.CreateGPUBuffer(gpu^, {usage = {.VERTEX}, size = u32(data.VERTICES_BYTE_LEN)})
     if vertex_buffer^ == nil {
-        sdl3.Log("Couldn't to create vertex buffer: %s", sdl3.GetError())
+        sdl3.Log("Couldn't create vertex buffer: %s", sdl3.GetError())
+        return .FAILURE
+    }
+
+    // Create index buffer
+    index_buffer^ = sdl3.CreateGPUBuffer(gpu^, {usage = {.INDEX}, size = u32(data.INDICES_BYTE_LEN)})
+    if index_buffer^ == nil {
+        sdl3.Log("Couldn't create index buffer: %s", sdl3.GetError())
         return .FAILURE
     }
 
     // Create transfer buffer
-    transfer_buffer_create_info := sdl3.GPUTransferBufferCreateInfo {
-        usage = .UPLOAD,
-        size  = u32(size_of(data.Vertex) * len(data.VERTICES)),
-    }
-    transfer_buffer^ = sdl3.CreateGPUTransferBuffer(gpu^, transfer_buffer_create_info)
+    transfer_buffer^ = sdl3.CreateGPUTransferBuffer(
+        gpu^,
+        {usage = .UPLOAD, size = u32(data.VERTICES_BYTE_LEN + data.INDICES_BYTE_LEN)},
+    )
     if transfer_buffer^ == nil {
-        sdl3.Log("Couldn't to create transfer buffer: %s", sdl3.GetError())
+        sdl3.Log("Couldn't create transfer buffer: %s", sdl3.GetError())
         return .FAILURE
     }
 

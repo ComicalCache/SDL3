@@ -1,20 +1,17 @@
 package data
 
-// Triangle side length
-@(private)
-l :: 30
-
-// sqrt(3) / 2
-@(private)
-lambda :: 0.8660254
-
 Vertex :: struct {
     pos: [3]f32,
     col: [3]f32,
 }
 
-VERTICES: [3]Vertex = {
-    Vertex{pos = {0, 2 * lambda * l / 3, 0}, col = {1, 0, 0}},
-    Vertex{pos = {l / 2, -lambda * l / 3, 0}, col = {0, 1, 0}},
-    Vertex{pos = {-l / 2, -lambda * l / 3, 0}, col = {0, 0, 1}},
+VERTICES := [?]Vertex {
+    Vertex{pos = {-30, -30, 0}, col = {0, 0, 1}},
+    Vertex{pos = {30, -30, 0}, col = {0, 0, 1}},
+    Vertex{pos = {-30, 30, 0}, col = {1, 0, 0}},
+    Vertex{pos = {30, 30, 0}, col = {1, 0, 0}},
 }
+VERTICES_BYTE_LEN: uint = size_of(Vertex) * len(VERTICES)
+
+INDICES := [?]u16{0, 2, 1, 2, 3, 1}
+INDICES_BYTE_LEN: uint = size_of(u16) * len(INDICES)

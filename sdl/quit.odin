@@ -7,11 +7,15 @@ quit :: proc(
     window: ^sdl3.Window,
     gpu: ^sdl3.GPUDevice,
     pipeline: ^sdl3.GPUGraphicsPipeline,
-    vertex_buffer: ^sdl3.GPUBuffer,
+    vertex_buffer, index_buffer: ^sdl3.GPUBuffer,
     transfer_buffer: ^sdl3.GPUTransferBuffer,
 ) {
     if transfer_buffer != nil {
         sdl3.ReleaseGPUTransferBuffer(gpu, transfer_buffer)
+    }
+
+    if index_buffer != nil {
+        sdl3.ReleaseGPUBuffer(gpu, index_buffer)
     }
 
     if vertex_buffer != nil {

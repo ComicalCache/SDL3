@@ -1,25 +1,19 @@
 package sdl
 
-import "core:mem"
-import "core:os"
 import sdl3 "vendor:sdl3"
 
 @(require_results)
 load_shader :: proc(
     gpu: ^sdl3.GPUDevice,
-    path: cstring,
-    entry_point: cstring,
+    path, entry_point: cstring,
     stage: sdl3.GPUShaderStage,
     num_uniform_buffers: u32,
 ) -> ^sdl3.GPUShader {
     code_len: uint = 0
-    data := sdl3.LoadFile(path, &code_len)
-    if data == nil {
+    code := transmute([^]byte)sdl3.LoadFile(path, &code_len)
+    if code == nil {
         return nil
     }
-
-    code := make([^]u8, code_len)
-    mem.copy(code, data, int(code_len))
 
     shader_info := sdl3.GPUShaderCreateInfo {
         code                 = code,
@@ -35,7 +29,7 @@ load_shader :: proc(
 
     shader := sdl3.CreateGPUShader(gpu, shader_info)
 
-    sdl3.free(data)
+    sdl3.free(code)
 
     return shader
 }
