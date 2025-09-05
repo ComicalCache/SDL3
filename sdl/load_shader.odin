@@ -7,7 +7,7 @@ load_shader :: proc(
     gpu: ^sdl3.GPUDevice,
     path, entry_point: cstring,
     stage: sdl3.GPUShaderStage,
-    num_uniform_buffers: u32,
+    num_uniform_buffers, num_samplers: u32,
 ) -> ^sdl3.GPUShader {
     code_len: uint = 0
     code := transmute([^]byte)sdl3.LoadFile(path, &code_len)
@@ -21,7 +21,7 @@ load_shader :: proc(
         entrypoint           = entry_point,
         format               = {.MSL},
         stage                = stage,
-        num_samplers         = 0,
+        num_samplers         = num_samplers,
         num_uniform_buffers  = num_uniform_buffers,
         num_storage_buffers  = 0,
         num_storage_textures = 0,

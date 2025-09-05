@@ -1,9 +1,8 @@
 package sdl
 
+import "../data"
 import "core:math/linalg"
 import sdl3 "vendor:sdl3"
-
-import "../data"
 
 rot_speed := linalg.to_radians(f32(90))
 angle := f32(0)
@@ -17,6 +16,10 @@ iterate :: proc(
     pipeline: ^sdl3.GPUGraphicsPipeline,
     vertex_buffer, index_buffer: ^sdl3.GPUBuffer,
     transfer_buffer: ^sdl3.GPUTransferBuffer,
+    image: ^sdl3.Surface,
+    texture: ^sdl3.GPUTexture,
+    sampler: ^sdl3.GPUSampler,
+    texture_transfer_buffer: ^sdl3.GPUTransferBuffer,
 ) -> sdl3.AppResult {
     win_size: [2]i32
     sdl3.GetWindowSize(window, &win_size.x, &win_size.y)
@@ -28,9 +31,9 @@ iterate :: proc(
     angle += rot_speed * delta_time
     uniform_data := data.mvp(
         angle,
-        {0, 0, -100},
+        {0, 0, -300},
         {0, 0, -0},
-        {0, 0, -100},
+        {0, 0, -300},
         linalg.to_radians(f32(60)),
         f32(win_size.x) / f32(win_size.y),
     )
@@ -52,10 +55,19 @@ iterate :: proc(
     sdl3.memcpy(mapped_transfer_buffer[data.VERTICES_BYTE_LEN:], rawptr(&data.INDICES), data.INDICES_BYTE_LEN)
     sdl3.UnmapGPUTransferBuffer(gpu, transfer_buffer)
 
+    // Map the texture transfer buffer to the GPU
+    mapped_transfer_buffer = transmute([^]byte)sdl3.MapGPUTransferBuffer(gpu, texture_transfer_buffer, false)
+    if mapped_transfer_buffer == nil {
+        sdl3.Log("Couldn't map the texture transfer buffer: %s", sdl3.GetError())
+        return .FAILURE
+    }
+    sdl3.memcpy(mapped_transfer_buffer, image.pixels, uint(image.w * image.h * 4))
+    sdl3.UnmapGPUTransferBuffer(gpu, texture_transfer_buffer)
+
     // Begin copy pass
     copy_pass := sdl3.BeginGPUCopyPass(cmd_buffer)
 
-    // Copy our vertices
+    // Copy vertices
     sdl3.UploadToGPUBuffer(
         copy_pass,
         {transfer_buffer = transfer_buffer, offset = 0},
@@ -63,7 +75,7 @@ iterate :: proc(
         false,
     )
 
-    // Copy our indices
+    // Copy indices
     sdl3.UploadToGPUBuffer(
         copy_pass,
         {transfer_buffer = transfer_buffer, offset = u32(data.VERTICES_BYTE_LEN)},
@@ -71,16 +83,24 @@ iterate :: proc(
         false,
     )
 
+    // Copy textures
+    sdl3.UploadToGPUTexture(
+        copy_pass,
+        {transfer_buffer = texture_transfer_buffer, offset = 0},
+        {texture = texture, w = u32(image.w), h = u32(image.h), d = 1},
+        false,
+    )
+
     // End copy pass
     sdl3.EndGPUCopyPass(copy_pass)
 
     // Get swapchain texture
-    texture: ^sdl3.GPUTexture = nil
-    if !sdl3.WaitAndAcquireGPUSwapchainTexture(cmd_buffer, window, &texture, nil, nil) {
+    swapchain_texture: ^sdl3.GPUTexture = nil
+    if !sdl3.WaitAndAcquireGPUSwapchainTexture(cmd_buffer, window, &swapchain_texture, nil, nil) {
         sdl3.Log("Couldn't wait for and acquire GPU swapchain texture: %s", sdl3.GetError())
         return .FAILURE
     }
-    if texture == nil {
+    if swapchain_texture == nil {
         // Window may be minimized
         return .CONTINUE
     }
@@ -89,7 +109,7 @@ iterate :: proc(
     render_pass := sdl3.BeginGPURenderPass(
         cmd_buffer,
         &(sdl3.GPUColorTargetInfo {
-                texture = texture,
+                texture = swapchain_texture,
                 clear_color = {.11, .11, .11, 1},
                 load_op = .CLEAR,
                 store_op = .STORE,
@@ -109,6 +129,14 @@ iterate :: proc(
 
     // Bind indices data
     sdl3.BindGPUIndexBuffer(render_pass, {buffer = index_buffer}, ._16BIT)
+
+    // Bind sampler
+    sdl3.BindGPUFragmentSamplers(
+        render_pass,
+        0,
+        &(sdl3.GPUTextureSamplerBinding{texture = texture, sampler = sampler}),
+        1,
+    )
 
     // Draw pushed indices
     sdl3.DrawGPUIndexedPrimitives(render_pass, len(data.INDICES), 1, 0, 0, 0)

@@ -19,8 +19,24 @@ main :: proc() {
     index_buffer: ^sdl3.GPUBuffer = nil
     transfer_buffer: ^sdl3.GPUTransferBuffer = nil
 
+    image: ^sdl3.Surface = nil
+    texture: ^sdl3.GPUTexture = nil
+    sampler: ^sdl3.GPUSampler = nil
+    texture_transfer_buffer: ^sdl3.GPUTransferBuffer = nil
+
     halt: bool
-    result := sdl.init(&window, &gpu, &pipeline, &vertex_buffer, &index_buffer, &transfer_buffer)
+    result := sdl.init(
+        &window,
+        &gpu,
+        &pipeline,
+        &vertex_buffer,
+        &index_buffer,
+        &transfer_buffer,
+        &image,
+        &texture,
+        &sampler,
+        &texture_transfer_buffer,
+    )
     switch result {
     case .CONTINUE: halt = false
     case .SUCCESS: fallthrough
@@ -46,7 +62,18 @@ main :: proc() {
         }
 
         // Business and render logic
-        result = sdl.iterate(window, gpu, pipeline, vertex_buffer, index_buffer, transfer_buffer)
+        result = sdl.iterate(
+            window,
+            gpu,
+            pipeline,
+            vertex_buffer,
+            index_buffer,
+            transfer_buffer,
+            image,
+            texture,
+            sampler,
+            texture_transfer_buffer,
+        )
         switch result {
         case .CONTINUE: break
         case .SUCCESS: fallthrough
@@ -60,5 +87,17 @@ main :: proc() {
         }
     }
 
-    sdl.quit(result, window, gpu, pipeline, vertex_buffer, index_buffer, transfer_buffer)
+    sdl.quit(
+        result,
+        window,
+        gpu,
+        pipeline,
+        vertex_buffer,
+        index_buffer,
+        transfer_buffer,
+        image,
+        texture,
+        sampler,
+        texture_transfer_buffer,
+    )
 }

@@ -1,6 +1,7 @@
 package sdl
 
 import sdl3 "vendor:sdl3"
+import sdl3i "vendor:sdl3/image"
 
 import "../data"
 
@@ -11,6 +12,10 @@ init :: proc(
     pipeline: ^^sdl3.GPUGraphicsPipeline,
     vertex_buffer, index_buffer: ^^sdl3.GPUBuffer,
     transfer_buffer: ^^sdl3.GPUTransferBuffer,
+    image: ^^sdl3.Surface,
+    texture: ^^sdl3.GPUTexture,
+    sampler: ^^sdl3.GPUSampler,
+    texture_transfer_buffer: ^^sdl3.GPUTransferBuffer,
 ) -> sdl3.AppResult {
     if !sdl3.SetAppMetadata("SDl3 + Metal", "1.0.0", "cc.cmath.sdl3") {
         sdl3.Log("Couldn't set app metadata: %s", sdl3.GetError())
@@ -48,14 +53,14 @@ init :: proc(
     }
 
     // Load vertex shader
-    vertex_shader := load_shader(gpu^, "shaders/vert.metal", "vertex_main", .VERTEX, 1)
+    vertex_shader := load_shader(gpu^, "shaders/vert.metal", "vertex_main", .VERTEX, 1, 0)
     if vertex_shader == nil {
         sdl3.Log("Couldn't load vertex shader: %s", sdl3.GetError())
         return .FAILURE
     }
 
     // Load fragment shader
-    fragment_shader := load_shader(gpu^, "shaders/frag.metal", "fragment_main", .FRAGMENT, 0)
+    fragment_shader := load_shader(gpu^, "shaders/frag.metal", "fragment_main", .FRAGMENT, 0, 1)
     if fragment_shader == nil {
         sdl3.Log("Couldn't load fragment shader: %s", sdl3.GetError())
         return .FAILURE
@@ -87,6 +92,7 @@ init :: proc(
     vertex_attributes := []sdl3.GPUVertexAttribute {
         {buffer_slot = 0, format = .FLOAT3, location = 0, offset = u32(offset_of(data.Vertex, pos))},
         {buffer_slot = 0, format = .FLOAT3, location = 1, offset = u32(offset_of(data.Vertex, col))},
+        {buffer_slot = 0, format = .FLOAT2, location = 2, offset = u32(offset_of(data.Vertex, uv))},
     }
 
     // Create pipeline info
@@ -115,6 +121,35 @@ init :: proc(
     sdl3.ReleaseGPUShader(gpu^, vertex_shader)
     sdl3.ReleaseGPUShader(gpu^, fragment_shader)
 
+    // Load image
+    image^ = sdl3i.Load("media/jumbo_schreiner.png")
+    if image^ == nil {
+        sdl3.Log("Couldn't load image")
+        return .FAILURE
+    }
+    texture^ = sdl3.CreateGPUTexture(
+        gpu^,
+        {
+            type = .D2,
+            format = .R8G8B8A8_UNORM,
+            usage = {.SAMPLER},
+            width = u32(image^.w),
+            height = u32(image^.h),
+            layer_count_or_depth = 1,
+            num_levels = 1,
+        },
+    )
+    if texture^ == nil {
+        sdl3.Log("Coudln't create GPU texture: %s", sdl3.GetError())
+        return .FAILURE
+    }
+
+    sampler^ = sdl3.CreateGPUSampler(gpu^, {min_filter = .LINEAR, mag_filter = .LINEAR, mipmap_mode = .LINEAR})
+    if sampler^ == nil {
+        sdl3.Log("Couldn't create GPU sampler: %s", sdl3.GetError())
+        return .FAILURE
+    }
+
     // Create vertex buffer
     vertex_buffer^ = sdl3.CreateGPUBuffer(gpu^, {usage = {.VERTEX}, size = u32(data.VERTICES_BYTE_LEN)})
     if vertex_buffer^ == nil {
@@ -136,6 +171,16 @@ init :: proc(
     )
     if transfer_buffer^ == nil {
         sdl3.Log("Couldn't create transfer buffer: %s", sdl3.GetError())
+        return .FAILURE
+    }
+
+    // Create texture transfer buffer
+    texture_transfer_buffer^ = sdl3.CreateGPUTransferBuffer(
+        gpu^,
+        {usage = .UPLOAD, size = u32(image^.w * image^.h * 4)},
+    )
+    if texture_transfer_buffer^ == nil {
+        sdl3.Log("Couldn't create texture transfer buffer: %s", sdl3.GetError())
         return .FAILURE
     }
 

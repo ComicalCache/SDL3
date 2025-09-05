@@ -9,7 +9,27 @@ quit :: proc(
     pipeline: ^sdl3.GPUGraphicsPipeline,
     vertex_buffer, index_buffer: ^sdl3.GPUBuffer,
     transfer_buffer: ^sdl3.GPUTransferBuffer,
+    image: ^sdl3.Surface,
+    texture: ^sdl3.GPUTexture,
+    sampler: ^sdl3.GPUSampler,
+    texture_transfer_buffer: ^sdl3.GPUTransferBuffer,
 ) {
+    if image != nil {
+        sdl3.DestroySurface(image)
+    }
+
+    if sampler != nil {
+        sdl3.ReleaseGPUSampler(gpu, sampler)
+    }
+
+    if texture_transfer_buffer != nil {
+        sdl3.ReleaseGPUTransferBuffer(gpu, texture_transfer_buffer)
+    }
+
+    if texture != nil {
+        sdl3.ReleaseGPUTexture(gpu, texture)
+    }
+
     if transfer_buffer != nil {
         sdl3.ReleaseGPUTransferBuffer(gpu, transfer_buffer)
     }
