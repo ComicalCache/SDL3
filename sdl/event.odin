@@ -2,7 +2,6 @@ package sdl
 
 import sdl3 "vendor:sdl3"
 
-@(require_results)
 event :: proc(event: sdl3.Event) -> sdl3.AppResult {
     #partial switch event.type {
     case .QUIT: return .SUCCESS

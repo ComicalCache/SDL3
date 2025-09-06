@@ -2,7 +2,6 @@ package sdl
 
 import sdl3 "vendor:sdl3"
 
-@(require_results)
 load_shader :: proc(
     gpu: ^sdl3.GPUDevice,
     path, entry_point: cstring,

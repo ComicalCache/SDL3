@@ -1,8 +1,8 @@
 package main
 
-import sdl3 "vendor:sdl3"
-
+import "data"
 import "sdl"
+import sdl3 "vendor:sdl3"
 
 NS :: 1000000000
 FPS_TARGET :: 144
@@ -11,32 +11,10 @@ FRAME_TIME_NS :: (NS / FPS_TARGET)
 main :: proc() {
     sdl3.SetLogPriorities(.DEBUG)
 
-    window: ^sdl3.Window = nil
-    gpu: ^sdl3.GPUDevice = nil
-
-    pipeline: ^sdl3.GPUGraphicsPipeline = nil
-    vertex_buffer: ^sdl3.GPUBuffer = nil
-    index_buffer: ^sdl3.GPUBuffer = nil
-    transfer_buffer: ^sdl3.GPUTransferBuffer = nil
-
-    image: ^sdl3.Surface = nil
-    texture: ^sdl3.GPUTexture = nil
-    sampler: ^sdl3.GPUSampler = nil
-    texture_transfer_buffer: ^sdl3.GPUTransferBuffer = nil
+    state := data.State{}
 
     halt: bool
-    result := sdl.init(
-        &window,
-        &gpu,
-        &pipeline,
-        &vertex_buffer,
-        &index_buffer,
-        &transfer_buffer,
-        &image,
-        &texture,
-        &sampler,
-        &texture_transfer_buffer,
-    )
+    result := sdl.init(&state)
     switch result {
     case .CONTINUE: halt = false
     case .SUCCESS: fallthrough
@@ -62,18 +40,7 @@ main :: proc() {
         }
 
         // Business and render logic
-        result = sdl.iterate(
-            window,
-            gpu,
-            pipeline,
-            vertex_buffer,
-            index_buffer,
-            transfer_buffer,
-            image,
-            texture,
-            sampler,
-            texture_transfer_buffer,
-        )
+        result = sdl.iterate(&state)
         switch result {
         case .CONTINUE: break
         case .SUCCESS: fallthrough
@@ -87,17 +54,5 @@ main :: proc() {
         }
     }
 
-    sdl.quit(
-        result,
-        window,
-        gpu,
-        pipeline,
-        vertex_buffer,
-        index_buffer,
-        transfer_buffer,
-        image,
-        texture,
-        sampler,
-        texture_transfer_buffer,
-    )
+    sdl.quit(result, &state)
 }
