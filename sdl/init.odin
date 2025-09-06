@@ -49,8 +49,8 @@ init :: proc(state: ^data.State) -> sdl3.AppResult {
     if !data.append_texture_data_buffer(state, "media/jumbo_schreiner.png", .R8G8B8A8_UNORM, 4) { return .FAILURE }
 
     // Create vertex and index buffer
-    if !data.append_vertex_buffer(state, u32(data.VERTICES_BYTE_LEN)) { return .FAILURE }
-    if !data.append_index_buffer(state, u32(data.INDICES_BYTE_LEN)) { return .FAILURE }
+    if !data.append_vertex_buffer(state, u32(data.VERTICES_BYTE_LEN())) { return .FAILURE }
+    if !data.append_index_buffer(state, u32(data.INDICES_BYTE_LEN())) { return .FAILURE }
 
     // Create transfer buffers
     if !data.create_vertex_upload_buffer(state) { return .FAILURE }

@@ -1,3 +1,4 @@
+#+feature dynamic-literals
 package data
 
 import sdl3 "vendor:sdl3"
@@ -33,13 +34,76 @@ vertex_attributes :: proc() -> ([^]sdl3.GPUVertexAttribute, u32) {
     return data, len
 }
 
-VERTICES := [?]Vertex {
-    Vertex{pos = {-100, -100, 0}, col = {1, 1, 1}, uv = {0, 1}},
-    Vertex{pos = {100, -100, 0}, col = {1, 1, 1}, uv = {1, 1}},
-    Vertex{pos = {-100, 100, 0}, col = {1, 1, 1}, uv = {0, 0}},
-    Vertex{pos = {100, 100, 0}, col = {1, 1, 1}, uv = {1, 0}},
+VERTICES := [dynamic]Vertex {
+    // Front
+    Vertex{pos = {-100, -100, 100}, col = {1, 1, 1}, uv = {0, 1}}, // BL
+    Vertex{pos = {100, -100, 100}, col = {1, 1, 1}, uv = {1, 1}}, // BR
+    Vertex{pos = {-100, 100, 100}, col = {1, 1, 1}, uv = {0, 0}}, // TL
+    Vertex{pos = {100, 100, 100}, col = {1, 1, 1}, uv = {1, 0}}, // TR
+    // Back
+    Vertex{pos = {-100, -100, -100}, col = {1, 1, 1}, uv = {0, 1}}, // BL
+    Vertex{pos = {100, -100, -100}, col = {1, 1, 1}, uv = {1, 1}}, // BR
+    Vertex{pos = {-100, 100, -100}, col = {1, 1, 1}, uv = {0, 0}}, // TL
+    Vertex{pos = {100, 100, -100}, col = {1, 1, 1}, uv = {1, 0}}, // TR
+    // Left
+    Vertex{pos = {100, -100, -100}, col = {1, 1, 1}, uv = {0, 1}}, // BL
+    Vertex{pos = {100, -100, 100}, col = {1, 1, 1}, uv = {1, 1}}, // BR
+    Vertex{pos = {100, 100, -100}, col = {1, 1, 1}, uv = {0, 0}}, // TL
+    Vertex{pos = {100, 100, 100}, col = {1, 1, 1}, uv = {1, 0}}, // TR
+    // Right
+    Vertex{pos = {-100, -100, -100}, col = {1, 1, 1}, uv = {0, 1}}, // BL
+    Vertex{pos = {-100, -100, 100}, col = {1, 1, 1}, uv = {1, 1}}, // BR
+    Vertex{pos = {-100, 100, -100}, col = {1, 1, 1}, uv = {0, 0}}, // TL
+    Vertex{pos = {-100, 100, 100}, col = {1, 1, 1}, uv = {1, 0}}, // TR
+    // Top
+    Vertex{pos = {-100, 100, 100}, col = {1, 1, 1}, uv = {0, 1}}, // BL
+    Vertex{pos = {100, 100, 100}, col = {1, 1, 1}, uv = {1, 1}}, // BR
+    Vertex{pos = {-100, 100, -100}, col = {1, 1, 1}, uv = {0, 0}}, // TL
+    Vertex{pos = {100, 100, -100}, col = {1, 1, 1}, uv = {1, 0}}, // TR
+    // Bottom
+    Vertex{pos = {-100, -100, 100}, col = {1, 1, 1}, uv = {0, 1}}, // BL
+    Vertex{pos = {100, -100, 100}, col = {1, 1, 1}, uv = {1, 1}}, // BR
+    Vertex{pos = {-100, -100, -100}, col = {1, 1, 1}, uv = {0, 0}}, // TL
+    Vertex{pos = {100, -100, -100}, col = {1, 1, 1}, uv = {1, 0}}, // TR
 }
-VERTICES_BYTE_LEN: uint = size_of(Vertex) * len(VERTICES)
+VERTICES_BYTE_LEN :: proc() -> uint { return size_of(Vertex) * len(VERTICES) }
 
-INDICES := [?]u16{0, 2, 1, 2, 3, 1}
-INDICES_BYTE_LEN: uint = size_of(u16) * len(INDICES)
+INDICES := [dynamic]u16 {
+    0,
+    2,
+    1,
+    2,
+    3,
+    1,
+    4,
+    6,
+    5,
+    6,
+    7,
+    5,
+    8,
+    10,
+    9,
+    10,
+    11,
+    9,
+    12,
+    14,
+    13,
+    14,
+    15,
+    13,
+    16,
+    18,
+    17,
+    18,
+    19,
+    17,
+    20,
+    22,
+    21,
+    22,
+    23,
+    21,
+}
+INDICES_BYTE_LEN :: proc() -> uint { return size_of(u16) * len(INDICES) }

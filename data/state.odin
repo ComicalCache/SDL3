@@ -34,6 +34,7 @@ State :: struct {
     window:         ^sdl3.Window,
     gpu:            ^sdl3.GPUDevice,
     pipeline:       ^sdl3.GPUGraphicsPipeline,
+    depth_texture:  ^sdl3.GPUTexture,
     vertex_buffer:  DataBuffer,
     index_buffer:   IndexDataBuffer,
     texture_buffer: TextureBuffer,
@@ -55,6 +56,7 @@ clean_up :: proc(state: ^State) {
         sdl3.ReleaseGPUBuffer(state.gpu, vertex_data)
     }
 
+    sdl3.ReleaseGPUTexture(state.gpu, state.depth_texture)
     sdl3.ReleaseGPUGraphicsPipeline(state.gpu, state.pipeline)
     sdl3.DestroyGPUDevice(state.gpu)
     sdl3.DestroyWindow(state.window)
@@ -113,7 +115,12 @@ create_pipeline :: proc(state: ^State, vertex_shader, fragment_shader: ^sdl3.GPU
 
     create_info := sdl3.GPUGraphicsPipelineCreateInfo {
         rasterizer_state = {fill_mode = .FILL, cull_mode = .NONE, front_face = .CLOCKWISE},
-        target_info = {num_color_targets = 1, color_target_descriptions = &color_target_description},
+        target_info = {
+            num_color_targets = 1,
+            color_target_descriptions = &color_target_description,
+            has_depth_stencil_target = true,
+            depth_stencil_format = .D16_UNORM,
+        },
         primitive_type = .TRIANGLELIST,
         vertex_shader = vertex_shader,
         fragment_shader = fragment_shader,
@@ -123,11 +130,34 @@ create_pipeline :: proc(state: ^State, vertex_shader, fragment_shader: ^sdl3.GPU
             num_vertex_attributes = vertex_attributes_len,
             vertex_attributes = vertex_attributes,
         },
+        depth_stencil_state = {compare_op = .LESS, enable_depth_test = true, enable_depth_write = true},
     }
 
     state.pipeline = sdl3.CreateGPUGraphicsPipeline(state.gpu, create_info)
     if state.pipeline == nil {
         sdl3.Log("Couldn't create graphics pipeline: %s", sdl3.GetError())
+        return false
+    }
+
+    return true
+}
+
+set_depth_texture :: proc(state: ^State, w: u32, h: u32) -> bool {
+    sdl3.ReleaseGPUTexture(state.gpu, state.depth_texture)
+
+    state.depth_texture = sdl3.CreateGPUTexture(
+        state.gpu,
+        {
+            format = .D16_UNORM,
+            usage = {.DEPTH_STENCIL_TARGET},
+            width = w,
+            height = h,
+            layer_count_or_depth = 1,
+            num_levels = 1,
+        },
+    )
+    if state.depth_texture == nil {
+        sdl3.Log("Coudln't create GPU texture: %s", sdl3.GetError())
         return false
     }
 

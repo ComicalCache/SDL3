@@ -20,11 +20,11 @@ iterate :: proc(state: ^data.State) -> sdl3.AppResult {
     angle += rot_speed * delta_time
     uniform_data := data.mvp(
         angle,
-        {0, 0, -300},
-        {0, 0, -0},
-        {0, 0, -300},
-        linalg.to_radians(f32(60)),
-        f32(win_size.x) / f32(win_size.y),
+        translation = {0, 0, -350},
+        eye = {0, 200, 0},
+        centre = {0, 0, -350},
+        fov = linalg.to_radians(f32(60)),
+        aspect = f32(win_size.x) / f32(win_size.y),
     )
 
     // Create GPU commands
@@ -36,12 +36,12 @@ iterate :: proc(state: ^data.State) -> sdl3.AppResult {
 
     // Map the data transfer buffer to the GPU
     if !data.map_vertex_buffer(state) { return .FAILURE }
-    data.copy_to_vertex_buffer(state, 0, rawptr(&data.VERTICES))
+    data.copy_to_vertex_buffer(state, 0, raw_data(data.VERTICES))
     data.unmap_vertex_buffer(state)
 
     // Map the index transfer buffer to the GPU
     if !data.map_index_buffer(state) { return .FAILURE }
-    data.copy_to_index_buffer(state, rawptr(&data.INDICES))
+    data.copy_to_index_buffer(state, raw_data(data.INDICES))
     data.unmap_index_buffer(state)
 
     // Map the texture transfer buffer to the GPU
@@ -50,6 +50,9 @@ iterate :: proc(state: ^data.State) -> sdl3.AppResult {
     }
     data.copy_to_texture_data_buffer(state, 0)
     data.unmap_texture_data_buffer(state)
+
+    // Set depth
+    data.set_depth_texture(state, u32(win_size.x), u32(win_size.y))
 
     // Begin copy pass
     copy_pass := sdl3.BeginGPUCopyPass(cmd_buffer)
@@ -82,7 +85,12 @@ iterate :: proc(state: ^data.State) -> sdl3.AppResult {
                 store_op = .STORE,
             }),
         1,
-        nil,
+        &(sdl3.GPUDepthStencilTargetInfo {
+                texture = state.depth_texture,
+                load_op = .CLEAR,
+                clear_depth = 1,
+                store_op = .DONT_CARE,
+            }),
     )
 
     // Bind pipeline
@@ -96,7 +104,7 @@ iterate :: proc(state: ^data.State) -> sdl3.AppResult {
     data.bind_sampler(state, render_pass)
 
     // Draw pushed indices
-    sdl3.DrawGPUIndexedPrimitives(render_pass, len(data.INDICES), 1, 0, 0, 0)
+    sdl3.DrawGPUIndexedPrimitives(render_pass, u32(len(data.INDICES)), 1, 0, 0, 0)
 
     // End render pass
     sdl3.EndGPURenderPass(render_pass)
