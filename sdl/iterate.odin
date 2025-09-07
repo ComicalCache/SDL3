@@ -1,5 +1,6 @@
 package sdl
 
+import "../app_state"
 import "../data"
 import "../state"
 import "core:math/linalg"
@@ -10,23 +11,20 @@ angle := f32(0)
 
 last_ticks := sdl3.GetTicks()
 
-iterate :: proc(s: ^state.State) -> sdl3.AppResult {
-    win_size: [2]i32
-    sdl3.GetWindowSize(s.window, &win_size.x, &win_size.y)
-
-    // Set rotation angle
+iterate :: proc(s: ^state.State, as: ^app_state.AppState) -> sdl3.AppResult {
     new_ticks := sdl3.GetTicks()
     delta_time := f32(new_ticks - last_ticks) / 1000
+    app_state.frame_init(as, delta_time)
+
+    // Set rotation angle
+    win_size: [2]i32
+    sdl3.GetWindowSize(s.window, &win_size.x, &win_size.y)
     last_ticks = new_ticks
     angle += rot_speed * delta_time
-    uniform_data := data.mvp(
-        angle,
-        translation = {0, 0, -350},
-        eye = {0, 200, 0},
-        centre = {0, 0, -350},
-        fov = linalg.to_radians(f32(60)),
-        aspect = f32(win_size.x) / f32(win_size.y),
-    )
+    m, v, p := app_state.mvp(as, angle, {0, 1, 0}, {0, 0, -3}, f32(win_size.x) / f32(win_size.y))
+    uniform_data := data.UniformData {
+        mvp = p * v * m,
+    }
 
     // Create GPU commands
     cmd_buffer := sdl3.AcquireGPUCommandBuffer(s.gpu)
@@ -36,19 +34,18 @@ iterate :: proc(s: ^state.State) -> sdl3.AppResult {
     }
 
     // Map the data transfer buffer to the GPU
-    if !state.map_vertex_buffer(s) { return .FAILURE }
+    if !state.map_vertex_buffer(s) do return .FAILURE
     state.copy_to_vertex_buffer(s, 0, raw_data(data.VERTICES))
     state.unmap_vertex_buffer(s)
 
     // Map the index transfer buffer to the GPU
-    if !state.map_index_buffer(s) { return .FAILURE }
+    if !state.map_index_buffer(s) do return .FAILURE
     state.copy_to_index_buffer(s, raw_data(data.INDICES))
     state.unmap_index_buffer(s)
 
     // Map the texture transfer buffer to the GPU
-    if !state.map_texture_data_buffer(s) {
-        return .FAILURE
-    }
+    if !state.map_texture_data_buffer(s) do return .FAILURE
+
     state.copy_to_texture_data_buffer(s, 0)
     state.unmap_texture_data_buffer(s)
 
@@ -71,10 +68,9 @@ iterate :: proc(s: ^state.State) -> sdl3.AppResult {
         sdl3.Log("Couldn't wait for and acquire GPU swapchain texture: %s", sdl3.GetError())
         return .FAILURE
     }
-    if swapchain_texture == nil {
-        // Window may be minimized
-        return .CONTINUE
-    }
+
+    // Window may be minimized
+    if swapchain_texture == nil do return .CONTINUE
 
     // Begin render pass
     render_pass := sdl3.BeginGPURenderPass(
@@ -98,7 +94,7 @@ iterate :: proc(s: ^state.State) -> sdl3.AppResult {
     sdl3.BindGPUGraphicsPipeline(render_pass, s.pipeline)
 
     // Push uniform data
-    sdl3.PushGPUVertexUniformData(cmd_buffer, 0, rawptr(&uniform_data), size_of(data.Uniform))
+    sdl3.PushGPUVertexUniformData(cmd_buffer, 0, rawptr(&uniform_data), size_of(data.UniformData))
 
     state.bind_vertex_buffer(s, render_pass)
     state.bind_index_buffer(s, render_pass)

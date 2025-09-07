@@ -17,9 +17,10 @@ struct OutputVertex {
     float2 uv;
 };
 
-vertex OutputVertex vertex_main(InputVertex in [[stage_in]], constant Uniform& uniform [[buffer(0)]]) {
+vertex OutputVertex vertex_main(
+    InputVertex in [[stage_in]],
+    constant Uniform& uniform [[buffer(0)]]) {
     OutputVertex out;
-
     out.position = uniform.mvp * float4(in.position, 1);
     out.color = in.color;
     out.uv = in.uv;

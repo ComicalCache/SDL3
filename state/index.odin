@@ -12,10 +12,8 @@ IndexDataBuffer :: struct {
 create_index_upload_buffer :: proc(s: ^State) -> bool {
     sdl3.ReleaseGPUTransferBuffer(s.gpu, s.index_buffer.transfer_buffer)
 
-    s.index_buffer.transfer_buffer = sdl3.CreateGPUTransferBuffer(
-        s.gpu,
-        {usage = .UPLOAD, size = s.index_buffer.data_len},
-    )
+    size := s.index_buffer.data_len
+    s.index_buffer.transfer_buffer = sdl3.CreateGPUTransferBuffer(s.gpu, {usage = .UPLOAD, size = size})
     if s.index_buffer.transfer_buffer == nil {
         sdl3.Log("Couldn't create index transfer buffer: %s", sdl3.GetError())
         return false
@@ -42,6 +40,7 @@ set_index_buffer :: proc(s: ^State, size: u32) -> bool {
 clear_index_buffer :: proc(s: ^State) {
     sdl3.ReleaseGPUTransferBuffer(s.gpu, s.index_buffer.transfer_buffer)
     sdl3.ReleaseGPUBuffer(s.gpu, s.index_buffer.data)
+    s.index_buffer.data_len = 0
 }
 
 map_index_buffer :: proc(s: ^State) -> bool {

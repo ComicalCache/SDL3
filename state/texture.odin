@@ -42,7 +42,7 @@ create_texture_data_upload_buffer :: proc(s: ^State) -> bool {
     sdl3.ReleaseGPUTransferBuffer(s.gpu, s.texture_buffer.transfer_buffer)
 
     size: u32 = 0
-    for len in s.texture_buffer.data_len { size += len }
+    for len in s.texture_buffer.data_len do size += len
 
     s.texture_buffer.transfer_buffer = sdl3.CreateGPUTransferBuffer(s.gpu, {usage = .UPLOAD, size = size})
     if s.texture_buffer.transfer_buffer == nil {
@@ -108,7 +108,7 @@ map_texture_data_buffer :: proc(s: ^State) -> bool {
 
 copy_to_texture_data_buffer :: proc(s: ^State, idx: uint) {
     offset: u32 = 0
-    for data_len_idx in 0 ..< idx { offset += s.texture_buffer.data_len[data_len_idx] }
+    for data_len_idx in 0 ..< idx do offset += s.texture_buffer.data_len[data_len_idx]
 
     sdl3.memcpy(
         s.texture_buffer.mapped_transfer_buffer[offset:],

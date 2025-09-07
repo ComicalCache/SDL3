@@ -10,9 +10,7 @@ load_shader :: proc(
 ) -> ^sdl3.GPUShader {
     code_len: uint = 0
     code := transmute([^]byte)sdl3.LoadFile(path, &code_len)
-    if code == nil {
-        return nil
-    }
+    if code == nil do return nil
 
     shader_info := sdl3.GPUShaderCreateInfo {
         code                 = code,

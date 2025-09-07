@@ -26,9 +26,7 @@ free_state :: proc(s: ^State) {
     sdl3.ReleaseGPUBuffer(s.gpu, s.index_buffer.data)
 
     sdl3.ReleaseGPUTransferBuffer(s.gpu, s.vertex_buffer.transfer_buffer)
-    for vertex_data in s.vertex_buffer.data {
-        sdl3.ReleaseGPUBuffer(s.gpu, vertex_data)
-    }
+    for vertex_data in s.vertex_buffer.data do sdl3.ReleaseGPUBuffer(s.gpu, vertex_data)
 
     sdl3.ReleaseGPUTexture(s.gpu, s.depth_texture)
     sdl3.ReleaseGPUGraphicsPipeline(s.gpu, s.pipeline)
@@ -40,6 +38,10 @@ create_window :: proc(s: ^State, title: cstring, w, h: i32, flags: sdl3.WindowFl
     s.window = sdl3.CreateWindow(title, w, h, flags)
     if s.window == nil {
         sdl3.Log("Couldn't create window: %s", sdl3.GetError())
+        return false
+    }
+    if !sdl3.SetWindowRelativeMouseMode(s.window, true) {
+        sdl3.Log("Couldn't set window relative mouse: %s", sdl3.GetError())
         return false
     }
 
@@ -82,13 +84,13 @@ create_pipeline :: proc(s: ^State, vertex_shader, fragment_shader: ^sdl3.GPUShad
         slot               = 0,
         input_rate         = .VERTEX,
         instance_step_rate = 0,
-        pitch              = size_of(data.Vertex),
+        pitch              = size_of(data.VertexData),
     }
 
-    vertex_attributes, vertex_attributes_len := data.vertex_attributes()
+    vertex_attributes, vertex_attributes_len := data.vertex_data_attributes()
 
     create_info := sdl3.GPUGraphicsPipelineCreateInfo {
-        rasterizer_state = {fill_mode = .FILL, cull_mode = .NONE, front_face = .CLOCKWISE},
+        rasterizer_state = {fill_mode = .FILL, cull_mode = .BACK, front_face = .CLOCKWISE},
         target_info = {
             num_color_targets = 1,
             color_target_descriptions = &color_target_description,
@@ -136,4 +138,20 @@ bind_sampler :: proc(s: ^State, render_pass: ^sdl3.GPURenderPass) {
     }
 
     sdl3.BindGPUFragmentSamplers(render_pass, 0, bindings, u32(len(s.texture_buffer.data)))
+}
+
+set_window_relative_mouse :: proc(s: ^State, enabled: bool) -> bool {
+    if !enabled {
+        win_size: [2]i32
+        sdl3.GetWindowSize(s.window, &win_size.x, &win_size.y)
+
+        sdl3.WarpMouseInWindow(s.window, f32(win_size.x) / 2, f32(win_size.y) / 2)
+    }
+
+    if !sdl3.SetWindowRelativeMouseMode(s.window, enabled) {
+        sdl3.Log("Couldn't set window relative mouse: %s", sdl3.GetError())
+        return false
+    }
+
+    return true
 }

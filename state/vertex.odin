@@ -13,7 +13,7 @@ create_vertex_upload_buffer :: proc(s: ^State) -> bool {
     sdl3.ReleaseGPUTransferBuffer(s.gpu, s.vertex_buffer.transfer_buffer)
 
     size: u32 = 0
-    for len in s.vertex_buffer.data_len { size += len }
+    for len in s.vertex_buffer.data_len do size += len
 
     s.vertex_buffer.transfer_buffer = sdl3.CreateGPUTransferBuffer(s.gpu, {usage = .UPLOAD, size = size})
     if s.vertex_buffer.transfer_buffer == nil {
@@ -40,7 +40,7 @@ append_vertex_buffer :: proc(s: ^State, size: u32) -> bool {
 clear_vertex_buffer :: proc(s: ^State) {
     sdl3.ReleaseGPUTransferBuffer(s.gpu, s.vertex_buffer.transfer_buffer)
 
-    for buffer in s.vertex_buffer.data { sdl3.ReleaseGPUBuffer(s.gpu, buffer) }
+    for buffer in s.vertex_buffer.data do sdl3.ReleaseGPUBuffer(s.gpu, buffer)
     clear(&s.vertex_buffer.data)
 
     clear(&s.vertex_buffer.data_len)
@@ -59,7 +59,7 @@ map_vertex_buffer :: proc(s: ^State) -> bool {
 
 copy_to_vertex_buffer :: proc(s: ^State, idx: uint, data: rawptr) {
     offset: u32 = 0
-    for data_len_idx in 0 ..< idx { offset += s.vertex_buffer.data_len[data_len_idx] }
+    for data_len_idx in 0 ..< idx do offset += s.vertex_buffer.data_len[data_len_idx]
 
     sdl3.memcpy(s.vertex_buffer.mapped_transfer_buffer[offset:], data, uint(s.vertex_buffer.data_len[idx]))
 }
