@@ -95,7 +95,7 @@ create_pipeline :: proc(s: ^State, vertex_shader, fragment_shader: ^sdl3.GPUShad
             num_color_targets = 1,
             color_target_descriptions = &color_target_description,
             has_depth_stencil_target = true,
-            depth_stencil_format = .D16_UNORM,
+            depth_stencil_format = .D32_FLOAT,
         },
         primitive_type = .TRIANGLELIST,
         vertex_shader = vertex_shader,

@@ -28,14 +28,14 @@ init :: proc(s: ^state.State, as: ^app_state.AppState) -> sdl3.AppResult {
     if !state.create_gpu(s) do return .FAILURE
 
     // Load vertex shader
-    vertex_shader := load_shader(s.gpu, "shaders/vert.metal", "vertex_main", .VERTEX, 1, 0)
+    vertex_shader := load_shader(s.gpu, "content/shaders/vert.metal", "vertex_main", .VERTEX, 1, 0)
     if vertex_shader == nil {
         sdl3.Log("Couldn't load vertex shader: %s", sdl3.GetError())
         return .FAILURE
     }
 
     // Load fragment shader
-    fragment_shader := load_shader(s.gpu, "shaders/frag.metal", "fragment_main", .FRAGMENT, 0, 1)
+    fragment_shader := load_shader(s.gpu, "content/shaders/frag.metal", "fragment_main", .FRAGMENT, 0, 1)
     if fragment_shader == nil {
         sdl3.Log("Couldn't load fragment shader: %s", sdl3.GetError())
         return .FAILURE
@@ -52,7 +52,7 @@ init :: proc(s: ^state.State, as: ^app_state.AppState) -> sdl3.AppResult {
     if !state.create_sampler(s, {min_filter = .LINEAR, mag_filter = .LINEAR, mipmap_mode = .LINEAR}) do return .FAILURE
 
     // Load texture
-    if !state.append_texture_data_buffer(s, "media/jumbo_schreiner.png", .R8G8B8A8_UNORM, 4) do return .FAILURE
+    if !state.append_texture_data_buffer(s, "content/media/jumbo_schreiner.png", .R8G8B8A8_UNORM, 4) do return .FAILURE
 
     // Create vertex and index buffer
     if !state.append_vertex_buffer(s, u32(data.VERTICES_BYTE_LEN())) do return .FAILURE

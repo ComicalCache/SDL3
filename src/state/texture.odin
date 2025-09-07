@@ -22,7 +22,7 @@ set_depth_texture :: proc(s: ^State, w: u32, h: u32) -> bool {
     s.depth_texture = sdl3.CreateGPUTexture(
         s.gpu,
         {
-            format = .D16_UNORM,
+            format = .D32_FLOAT,
             usage = {.DEPTH_STENCIL_TARGET},
             width = w,
             height = h,
