@@ -1,7 +1,7 @@
 package main
 
-import "data"
 import "sdl"
+import "state"
 import sdl3 "vendor:sdl3"
 
 NS :: 1000000000
@@ -11,10 +11,10 @@ FRAME_TIME_NS :: (NS / FPS_TARGET)
 main :: proc() {
     sdl3.SetLogPriorities(.DEBUG)
 
-    state := data.State{}
+    s := state.State{}
 
     halt: bool
-    result := sdl.init(&state)
+    result := sdl.init(&s)
     switch result {
     case .CONTINUE: halt = false
     case .SUCCESS: fallthrough
@@ -25,9 +25,9 @@ main :: proc() {
         frame_start := sdl3.GetPerformanceCounter()
 
         // Handle events
-        event := sdl3.Event{}
-        for sdl3.PollEvent(&event) && !halt {
-            switch sdl.event(event) {
+        e := sdl3.Event{}
+        for sdl3.PollEvent(&e) && !halt {
+            switch sdl.event(e) {
             case .CONTINUE: break
             case .SUCCESS: fallthrough
             case .FAILURE: halt = true
@@ -40,7 +40,7 @@ main :: proc() {
         }
 
         // Business and render logic
-        result = sdl.iterate(&state)
+        result = sdl.iterate(&s)
         switch result {
         case .CONTINUE: break
         case .SUCCESS: fallthrough
@@ -54,5 +54,5 @@ main :: proc() {
         }
     }
 
-    sdl.quit(result, &state)
+    sdl.quit(result, &s)
 }

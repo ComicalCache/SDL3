@@ -1,6 +1,7 @@
 package sdl
 
 import "../data"
+import "../state"
 import "core:math/linalg"
 import sdl3 "vendor:sdl3"
 
@@ -9,9 +10,9 @@ angle := f32(0)
 
 last_ticks := sdl3.GetTicks()
 
-iterate :: proc(state: ^data.State) -> sdl3.AppResult {
+iterate :: proc(s: ^state.State) -> sdl3.AppResult {
     win_size: [2]i32
-    sdl3.GetWindowSize(state.window, &win_size.x, &win_size.y)
+    sdl3.GetWindowSize(s.window, &win_size.x, &win_size.y)
 
     // Set rotation angle
     new_ticks := sdl3.GetTicks()
@@ -28,45 +29,45 @@ iterate :: proc(state: ^data.State) -> sdl3.AppResult {
     )
 
     // Create GPU commands
-    cmd_buffer := sdl3.AcquireGPUCommandBuffer(state.gpu)
+    cmd_buffer := sdl3.AcquireGPUCommandBuffer(s.gpu)
     if cmd_buffer == nil {
         sdl3.Log("Couldn't get GPU command buffer: %s", sdl3.GetError())
         return .FAILURE
     }
 
     // Map the data transfer buffer to the GPU
-    if !data.map_vertex_buffer(state) { return .FAILURE }
-    data.copy_to_vertex_buffer(state, 0, raw_data(data.VERTICES))
-    data.unmap_vertex_buffer(state)
+    if !state.map_vertex_buffer(s) { return .FAILURE }
+    state.copy_to_vertex_buffer(s, 0, raw_data(data.VERTICES))
+    state.unmap_vertex_buffer(s)
 
     // Map the index transfer buffer to the GPU
-    if !data.map_index_buffer(state) { return .FAILURE }
-    data.copy_to_index_buffer(state, raw_data(data.INDICES))
-    data.unmap_index_buffer(state)
+    if !state.map_index_buffer(s) { return .FAILURE }
+    state.copy_to_index_buffer(s, raw_data(data.INDICES))
+    state.unmap_index_buffer(s)
 
     // Map the texture transfer buffer to the GPU
-    if !data.map_texture_data_buffer(state) {
+    if !state.map_texture_data_buffer(s) {
         return .FAILURE
     }
-    data.copy_to_texture_data_buffer(state, 0)
-    data.unmap_texture_data_buffer(state)
+    state.copy_to_texture_data_buffer(s, 0)
+    state.unmap_texture_data_buffer(s)
 
     // Set depth
-    data.set_depth_texture(state, u32(win_size.x), u32(win_size.y))
+    state.set_depth_texture(s, u32(win_size.x), u32(win_size.y))
 
     // Begin copy pass
     copy_pass := sdl3.BeginGPUCopyPass(cmd_buffer)
 
-    data.upload_vertex_buffer(state, copy_pass)
-    data.upload_index_buffer(state, copy_pass)
-    data.upload_texture_data_buffer(state, copy_pass)
+    state.upload_vertex_buffer(s, copy_pass)
+    state.upload_index_buffer(s, copy_pass)
+    state.upload_texture_data_buffer(s, copy_pass)
 
     // End copy pass
     sdl3.EndGPUCopyPass(copy_pass)
 
     // Get swapchain texture
     swapchain_texture: ^sdl3.GPUTexture = nil
-    if !sdl3.WaitAndAcquireGPUSwapchainTexture(cmd_buffer, state.window, &swapchain_texture, nil, nil) {
+    if !sdl3.WaitAndAcquireGPUSwapchainTexture(cmd_buffer, s.window, &swapchain_texture, nil, nil) {
         sdl3.Log("Couldn't wait for and acquire GPU swapchain texture: %s", sdl3.GetError())
         return .FAILURE
     }
@@ -86,7 +87,7 @@ iterate :: proc(state: ^data.State) -> sdl3.AppResult {
             }),
         1,
         &(sdl3.GPUDepthStencilTargetInfo {
-                texture = state.depth_texture,
+                texture = s.depth_texture,
                 load_op = .CLEAR,
                 clear_depth = 1,
                 store_op = .DONT_CARE,
@@ -94,14 +95,14 @@ iterate :: proc(state: ^data.State) -> sdl3.AppResult {
     )
 
     // Bind pipeline
-    sdl3.BindGPUGraphicsPipeline(render_pass, state.pipeline)
+    sdl3.BindGPUGraphicsPipeline(render_pass, s.pipeline)
 
     // Push uniform data
     sdl3.PushGPUVertexUniformData(cmd_buffer, 0, rawptr(&uniform_data), size_of(data.Uniform))
 
-    data.bind_vertex_buffer(state, render_pass)
-    data.bind_index_buffer(state, render_pass)
-    data.bind_sampler(state, render_pass)
+    state.bind_vertex_buffer(s, render_pass)
+    state.bind_index_buffer(s, render_pass)
+    state.bind_sampler(s, render_pass)
 
     // Draw pushed indices
     sdl3.DrawGPUIndexedPrimitives(render_pass, u32(len(data.INDICES)), 1, 0, 0, 0)
