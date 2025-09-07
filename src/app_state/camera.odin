@@ -34,6 +34,7 @@ camera_update :: proc(as: ^AppState, delta_time: f32) {
     sideways := look * linalg.Vector3f32{1, 0, 0}
 
     movement := forward * move_inputs.y + sideways * move_inputs.x
+    movement.y = 0
     if as.key_press_state[.SPACE] do movement.y += 1
     if as.key_press_state[.LCTRL] do movement.y -= 1
 
