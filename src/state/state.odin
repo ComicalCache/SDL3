@@ -58,7 +58,7 @@ create_gpu :: proc(s: ^State) -> bool {
         sdl3.Log("Couldn't claim window for GPU device: %s", sdl3.GetError())
         return false
     }
-    if !sdl3.SetGPUSwapchainParameters(s.gpu, s.window, .SDR, .IMMEDIATE) {
+    if !sdl3.SetGPUSwapchainParameters(s.gpu, s.window, .SDR_LINEAR, .IMMEDIATE) {
         sdl3.Log("Couldn't disable VSYNC")
         return false
     }

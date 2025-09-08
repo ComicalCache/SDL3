@@ -76,10 +76,10 @@ iterate :: proc(s: ^state.State, as: ^app_state.AppState) -> sdl3.AppResult {
     render_pass := sdl3.BeginGPURenderPass(
         cmd_buffer,
         &(sdl3.GPUColorTargetInfo {
-                texture = swapchain_texture,
-                clear_color = {.11, .11, .11, 1},
-                load_op = .CLEAR,
-                store_op = .STORE,
+                texture     = swapchain_texture,
+                clear_color = linalg.pow(sdl3.FColor{.11, .11, .11, 1}, 2.2), // convert to linear space
+                load_op     = .CLEAR,
+                store_op    = .STORE,
             }),
         1,
         &(sdl3.GPUDepthStencilTargetInfo {

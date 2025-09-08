@@ -52,7 +52,9 @@ init :: proc(s: ^state.State, as: ^app_state.AppState) -> sdl3.AppResult {
     if !state.create_sampler(s, {min_filter = .LINEAR, mag_filter = .LINEAR, mipmap_mode = .LINEAR}) do return .FAILURE
 
     // Load texture
-    if !state.append_texture_data_buffer(s, "content/media/jumbo_schreiner.png", .R8G8B8A8_UNORM, 4) do return .FAILURE
+    if !state.append_texture_data_buffer(s, "content/media/jumbo_schreiner.png", .R8G8B8A8_UNORM_SRGB, 4) {
+        return .FAILURE
+    }
 
     // Create vertex and index buffer
     if !state.append_vertex_buffer(s, u32(data.VERTICES_BYTE_LEN())) do return .FAILURE

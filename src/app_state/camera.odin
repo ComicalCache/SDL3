@@ -38,7 +38,7 @@ camera_update :: proc(as: ^AppState, delta_time: f32) {
     if as.key_press_state[.SPACE] do movement.y += 1
     if as.key_press_state[.LCTRL] do movement.y -= 1
 
-    sprinting: f32 = as.key_press_state[.LSHIFT] ? 2 : 1
+    sprinting: f32 = 2 if as.key_press_state[.LSHIFT] else 1
     motion := linalg.normalize0(movement) * MOVEMENT_SPEED * sprinting * delta_time
     as.camera.eye += motion
     as.camera.centre = as.camera.eye + forward
